@@ -1,4 +1,5 @@
 import { VestedNestLogo } from "./logo";
+import { PendingBadge } from "./pending-badge";
 import { SectionWide } from "./section";
 
 const columns = [
@@ -51,9 +52,10 @@ export function Footer() {
                   <li key={link}>
                     <a
                       href="#"
-                      className="text-[17px] font-light text-black/80 hover:text-black"
+                      className="inline-flex items-center gap-1.5 text-[17px] font-light text-black/80 hover:text-black"
                     >
                       {link}
+                      <PendingBadge compact label="page not yet built" />
                     </a>
                   </li>
                 ))}

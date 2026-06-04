@@ -7,6 +7,9 @@ import type {
   LoanStrategy,
 } from "@/types/database";
 import { useState } from "react";
+import type { AddressSuggestion } from "@/lib/realie";
+import { AddressAutocomplete } from "./address-autocomplete";
+import { PendingBadge } from "./pending-badge";
 import { PropertySummary } from "./property-summary";
 
 const tabs: { label: string; value: LoanStrategy }[] = [
@@ -17,8 +20,11 @@ const tabs: { label: string; value: LoanStrategy }[] = [
 ];
 
 const ficoOptions = ["660-679", "680-699", "700-719", "720-739", "740+"];
-const downPaymentOptions = ["20%", "Short-term", "Mid-term"];
+const downPaymentOptions = ["15%", "20%", "25%", "30%"];
 const strategyOptions = ["Long-term", "Short-term", "Mid-term"];
+
+const PRICING_PENDING_LABEL =
+  "saved to your inquiry, but pricing logic is implementation pending";
 const borrowerOptions: { label: string; value: BorrowerType }[] = [
   { label: "US Citizen", value: "us_citizen" },
   { label: "US Resident", value: "us_resident" },
@@ -40,10 +46,11 @@ function mapDownPayment(label: string): number | null {
 
 export function LoanInquiryForm() {
   const [activeTab, setActiveTab] = useState(0);
-  const [address, setAddress] = useState(
-    "1234 Gulf Pine Drive, Sarasota, FL 34236",
-  );
-  const [downPaymentIdx, setDownPaymentIdx] = useState(0);
+  const [address, setAddress] = useState("");
+  const [stateCode, setStateCode] = useState("FL");
+  const [selectedSuggestion, setSelectedSuggestion] =
+    useState<AddressSuggestion | null>(null);
+  const [downPaymentIdx, setDownPaymentIdx] = useState(1);
   const [ficoIdx, setFicoIdx] = useState(3);
   const [strategyIdx, setStrategyIdx] = useState(0);
   const [borrowerIdx, setBorrowerIdx] = useState(0);
@@ -52,18 +59,50 @@ export function LoanInquiryForm() {
   const [result, setResult] = useState<{
     property: Record<string, unknown> | null;
     realieError: string | null;
-    inquiryId: string;
   } | null>(null);
+
+  function resetForm() {
+    setAddress("");
+    setSelectedSuggestion(null);
+    setResult(null);
+    setError(null);
+    const field = document.getElementById("property-address");
+    if (field instanceof HTMLInputElement) field.focus();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (result) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
+    const submitAddress =
+      selectedSuggestion?.label ||
+      address.trim() ||
+      "";
+
+    if (!submitAddress) {
+      setError("Enter a property address.");
+      setLoading(false);
+      return;
+    }
+
     const payload: InquiryPayload = {
       loanStrategy: tabs[activeTab].value,
-      address,
+      address: submitAddress,
+      ...(selectedSuggestion
+        ? {
+            selectedProperty: selectedSuggestion.property,
+            structuredAddress: {
+              streetAddress: selectedSuggestion.streetAddress,
+              city: selectedSuggestion.city,
+              county: selectedSuggestion.county,
+              state: selectedSuggestion.state,
+              zip: selectedSuggestion.zip,
+            },
+          }
+        : {}),
       downPaymentPct: mapDownPayment(downPaymentOptions[downPaymentIdx]),
       ficoBand: ficoOptions[ficoIdx],
       intendedHorizon: mapHorizon(strategyOptions[strategyIdx]),
@@ -82,7 +121,6 @@ export function LoanInquiryForm() {
         return;
       }
       setResult({
-        inquiryId: data.inquiryId,
         property: data.property ?? null,
         realieError: data.realieError ?? null,
       });
@@ -104,7 +142,7 @@ export function LoanInquiryForm() {
         <span className="size-3 rounded-full bg-[#9a9a9a]/30" />
         <span className="size-3 rounded-full bg-[#9a9a9a]/20" />
       </div>
-      <div className="flex flex-wrap gap-2 border-b border-black/5 bg-[#f3f3f3] px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-black/5 bg-[#f3f3f3] px-4 py-3">
         {tabs.map((tab, i) => (
           <button
             key={tab.value}
@@ -119,60 +157,43 @@ export function LoanInquiryForm() {
             {tab.label}
           </button>
         ))}
+        <PendingBadge
+          className="ml-auto"
+          label="loan strategy selection does not change pricing yet, implementation pending"
+        />
       </div>
       <div className="space-y-6 p-6">
-        <div>
-          <label
-            htmlFor="property-address"
-            className="mb-2 block text-lg text-black"
-          >
-            Property address
-          </label>
-          <input
-            id="property-address"
-            name="address"
-            required
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="1234 Gulf Pine Drive, Sarasota, FL 34236"
-            className="w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-sm font-light text-black outline-none focus:border-vn-green focus:ring-1 focus:ring-vn-green"
-          />
-          <p className="mt-1 text-xs text-black/50">
-            Street, city, and state required for property lookup via{" "}
-            <a
-              href="https://docs.realie.ai/introduction"
-              className="underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Realie
-            </a>
-            .
-          </p>
-        </div>
-        <div className="text-sm text-black">
-          <span className="rounded border border-black/10 bg-white px-3 py-2">
-            🇺🇸 United States
-          </span>
-        </div>
+        <AddressAutocomplete
+          value={address}
+          stateCode={stateCode}
+          onValueChange={(v) => {
+            setAddress(v);
+            setSelectedSuggestion(null);
+          }}
+          onStateChange={setStateCode}
+          onSelect={setSelectedSuggestion}
+        />
         <div className="grid gap-6 md:grid-cols-3">
           <OptionGroup
             label="Target down payment"
             options={downPaymentOptions}
             active={downPaymentIdx}
             onSelect={setDownPaymentIdx}
+            pending
           />
           <OptionGroup
             label="Self-reported FICO"
             options={ficoOptions}
             active={ficoIdx}
             onSelect={setFicoIdx}
+            pending
           />
           <OptionGroup
             label="Intended strategy"
             options={strategyOptions}
             active={strategyIdx}
             onSelect={setStrategyIdx}
+            pending
           />
         </div>
         <OptionGroup
@@ -180,6 +201,7 @@ export function LoanInquiryForm() {
           options={borrowerOptions.map((b) => b.label)}
           active={borrowerIdx}
           onSelect={setBorrowerIdx}
+          pending
         />
 
         {error ? (
@@ -190,37 +212,50 @@ export function LoanInquiryForm() {
 
         {result ? (
           <div className="rounded-lg border border-black/10 p-4">
-            <p className="text-sm font-medium text-vn-green">
-              Inquiry saved · {result.inquiryId.slice(0, 8)}…
-            </p>
             {result.property ? (
               <>
-                <p className="mt-2 text-sm text-black">
-                  Property data from Realie:
+                <p className="text-sm font-medium text-vn-green">
+                  Property details
                 </p>
                 <PropertySummary property={result.property} />
               </>
             ) : (
               <p className="mt-2 text-sm text-black/70">
                 {result.realieError ??
-                  "No property record found. Your inquiry was still saved."}
+                  "No property record found for this address. Try another address or refine the street and state."}
               </p>
             )}
           </div>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-vn-green text-base font-semibold text-white disabled:opacity-60 sm:w-auto sm:px-8"
-        >
-          {loading ? "Looking up property…" : "Get property details"}
-        </button>
+        {result ? (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-vn-green text-base font-semibold text-white sm:w-auto sm:px-8"
+          >
+            Search another property
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-vn-green text-base font-semibold text-white disabled:opacity-60 sm:w-auto sm:px-8"
+          >
+            {loading ? "Saving inquiry…" : "Get property details"}
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-6 border-t border-black/5 px-6 py-4">
         {checks.map((item) => (
-          <span key={item} className="text-base font-medium text-vn-green">
+          <span
+            key={item}
+            className="inline-flex items-center gap-1.5 text-base font-medium text-vn-green"
+          >
             {item}
+            {item.includes("No account needed") ? (
+              <PendingBadge label="sign-in is currently required, implementation pending" />
+            ) : null}
           </span>
         ))}
       </div>
@@ -233,15 +268,20 @@ function OptionGroup({
   options,
   active,
   onSelect,
+  pending = false,
 }: {
   label: string;
   options: string[];
   active: number;
   onSelect: (index: number) => void;
+  pending?: boolean;
 }) {
   return (
     <div>
-      <p className="mb-2 text-lg text-black">{label}</p>
+      <p className="mb-2 flex items-center gap-2 text-lg text-black">
+        {label}
+        {pending ? <PendingBadge label={PRICING_PENDING_LABEL} /> : null}
+      </p>
       <div className="flex flex-wrap gap-2">
         {options.map((opt, i) => (
           <button

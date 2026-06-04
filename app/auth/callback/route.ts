@@ -14,5 +14,10 @@ export async function GET(request: Request) {
     }
   }
 
+  // Keep the popup flow intact on failure so it can report back and close.
+  if (next.startsWith("/auth/popup-done")) {
+    return NextResponse.redirect(`${origin}/auth/popup-done?error=auth`);
+  }
+
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

@@ -11,7 +11,7 @@ cp .env.example .env.local
 
 Fill in `.env.local`:
 
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — from [Supabase Dashboard](https://supabase.com/dashboard/project/axtzwpoosurrtmhidbsm/settings/api)
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — from [Supabase Dashboard → API Keys](https://supabase.com/dashboard/project/axtzwpoosurrtmhidbsm/settings/api) (use the **publishable** `sb_publishable_...` key, not the legacy anon JWT; see [API keys guide](https://supabase.com/docs/guides/api/api-keys))
 - `REALIE_API_KEY` — from [Realie API Dashboard](https://app.realie.ai/developer/)
 
 ### Google Auth (Supabase)

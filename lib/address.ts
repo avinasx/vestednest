@@ -111,9 +111,67 @@ export function parseUsAddress(input: string): ParsedAddress | null {
   return {
     streetAddress,
     city,
-    county: city,
+    county: null,
     state,
     unitNumber,
     zip,
+  };
+}
+
+/** Realie property search expects street in `address`, not a full formatted line. */
+export function buildPropertySearchParams(
+  query: string,
+  defaultState: string,
+): Record<string, string> {
+  const trimmed = query.trim();
+  const params: Record<string, string> = {
+    state: defaultState.toUpperCase(),
+  };
+
+  const parsed = parseUsAddress(trimmed);
+  if (parsed) {
+    params.address = parsed.streetAddress;
+    params.state = parsed.state;
+    if (parsed.city) params.city = parsed.city;
+    if (parsed.county && parsed.county !== parsed.city) {
+      params.county = parsed.county;
+    }
+    return params;
+  }
+
+  if (trimmed.includes(",")) {
+    const parts = trimmed.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      params.address = parts[0];
+      const last = parts[parts.length - 1];
+      const stateOnly = last.match(/^([A-Za-z]{2})$/i);
+      if (stateOnly) {
+        params.state = stateOnly[1].toUpperCase();
+        if (parts.length >= 3) params.city = parts[parts.length - 2];
+      } else {
+        params.city = last;
+      }
+      return params;
+    }
+  }
+
+  params.address = trimmed;
+  return params;
+}
+
+export function parsedFromSuggestion(suggestion: {
+  streetAddress: string;
+  city: string | null;
+  county: string | null;
+  state: string;
+  zip: string | null;
+}): ParsedAddress {
+  return {
+    streetAddress: suggestion.streetAddress,
+    city: suggestion.city,
+    county: suggestion.county ?? suggestion.city,
+    state: suggestion.state.toUpperCase(),
+    unitNumber: null,
+    zip: suggestion.zip,
   };
 }

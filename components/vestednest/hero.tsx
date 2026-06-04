@@ -1,16 +1,13 @@
-import Link from "next/link";
+import { ApplyLink } from "./apply-link";
 import { ArrowRight, PlayIcon } from "./icons";
-import { HeroMap } from "./hero-map";
-import { LoanInquiryForm } from "./loan-inquiry-form";
+import { LoanFormPreview } from "./loan-form-preview";
+import { PendingBadge } from "./pending-badge";
 
 export function Hero() {
   return (
     <section className="relative overflow-hidden bg-vn-bg pt-10 pb-16 md:pt-14 md:pb-20">
-      <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-[42%] max-w-[620px] lg:block">
-        <HeroMap />
-      </div>
       <div className="relative mx-auto w-full max-w-[1440px] px-6 md:px-[100px]">
-        <div className="flex flex-col gap-10 lg:max-w-[58%]">
+        <div className="flex flex-col gap-10 max-w-[820px]">
           <div>
             <h1 className="text-[40px] font-semibold leading-[1.15] tracking-tight text-black md:text-[52px]">
               Sixty seconds to a{" "}
@@ -30,22 +27,20 @@ export function Hero() {
               </span>
             </div>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                href="#loan-inquiry-form"
-                className="inline-flex h-14 items-center gap-2 rounded-full bg-vn-green px-6 text-lg font-semibold text-white"
-              >
+              <ApplyLink className="inline-flex h-14 items-center gap-2 rounded-full bg-vn-green px-6 text-lg font-semibold text-white">
                 Start with an address
                 <ArrowRight />
-              </Link>
+              </ApplyLink>
               <a
                 href="#"
                 className="inline-flex h-14 items-center gap-2 rounded-full border border-black/10 bg-white px-6 text-lg font-medium text-black"
               >
                 See a sample term sheet
                 <PlayIcon />
+                <PendingBadge label="sample term sheet not yet available" />
               </a>
             </div>
-            <LoanInquiryForm />
+            <LoanFormPreview />
           </div>
         </div>
       </div>

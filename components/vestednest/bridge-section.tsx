@@ -1,4 +1,5 @@
 import { ArrowRight } from "./icons";
+import { PendingBadge } from "./pending-badge";
 import { SectionWide } from "./section";
 
 export function BridgeSection() {
@@ -21,6 +22,7 @@ export function BridgeSection() {
       >
         Calculate your bridge savings
         <ArrowRight />
+        <PendingBadge label="bridge savings calculator not yet built" />
       </a>
 
       <div className="mt-12 rounded-2xl border border-black/5 bg-white p-8 md:p-12">

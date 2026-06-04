@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { parseUsAddress } from "@/lib/address";
-import { lookupProperty } from "@/lib/realie";
+import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
+import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
 import { createClient } from "@/lib/supabase/server";
 import type {
   BorrowerType,
   InvestmentHorizon,
-  Json,
   LoanStrategy,
 } from "@/types/database";
 
@@ -16,6 +15,15 @@ export type InquiryPayload = {
   ficoBand: string;
   intendedHorizon: InvestmentHorizon;
   borrowerType: BorrowerType;
+  /** Property record from autocomplete — avoids a second Realie lookup that often 404s. */
+  selectedProperty?: Record<string, unknown> | null;
+  structuredAddress?: {
+    streetAddress: string;
+    city: string | null;
+    county: string | null;
+    state: string;
+    zip: string | null;
+  } | null;
 };
 
 export async function POST(request: Request) {
@@ -27,12 +35,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = parseUsAddress(body.address);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = body.structuredAddress
+    ? parsedFromSuggestion(body.structuredAddress)
+    : parseUsAddress(body.address);
+
   if (!parsed) {
     return NextResponse.json(
       {
         error:
-          'Enter a full US address (e.g. "123 Main St, Sarasota, FL 34236").',
+          'Select an address from the suggestions or enter a full US address (e.g. "123 Main St, Sarasota, FL 34236").',
       },
       { status: 400 },
     );
@@ -41,49 +61,38 @@ export async function POST(request: Request) {
   let realieProperty: Record<string, unknown> | null = null;
   let realieError: string | null = null;
 
-  try {
-    const realie = await lookupProperty(parsed);
-    realieProperty = realie.property;
-    realieError = realie.error;
-  } catch (err) {
-    realieError =
-      err instanceof Error ? err.message : "Realie property lookup failed";
-  }
+  if (
+    body.selectedProperty &&
+    typeof body.selectedProperty === "object" &&
+    Object.keys(body.selectedProperty).length > 0
+  ) {
+    realieProperty = body.selectedProperty;
+  } else {
+    try {
+      const realie = await lookupProperty(parsed);
+      realieProperty = realie.property;
+      realieError = realie.error;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from("loan_inquiries")
-    .insert({
-      user_id: user?.id ?? null,
-      loan_strategy: body.loanStrategy,
-      street_address: parsed.streetAddress,
-      city: parsed.city,
-      county: parsed.county,
-      state: parsed.state,
-      unit_number: parsed.unitNumber,
-      down_payment_pct: body.downPaymentPct,
-      fico_band: body.ficoBand,
-      intended_horizon: body.intendedHorizon,
-      borrower_type: body.borrowerType,
-      realie_property: realieProperty as Json,
-      realie_error: realieError,
-      status: realieProperty ? "property_found" : "submitted",
-    })
-    .select("id, realie_property, realie_error, status")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!realieProperty) {
+        const { suggestions } = await searchAddressSuggestions(
+          body.address,
+          parsed.state,
+          1,
+        );
+        if (suggestions[0]) {
+          realieProperty = suggestions[0].property;
+          realieError = null;
+        }
+      }
+    } catch (err) {
+      realieError =
+        err instanceof Error ? err.message : "Realie property lookup failed";
+    }
   }
 
   return NextResponse.json({
-    inquiryId: data.id,
-    status: data.status,
-    property: data.realie_property,
-    realieError: data.realie_error,
+    status: realieProperty ? "property_found" : "submitted",
+    property: realieProperty,
+    realieError,
   });
 }

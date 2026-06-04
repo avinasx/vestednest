@@ -1,26 +1,111 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
-export function AuthForm() {
+function openCenteredPopup() {
+  const w = 480;
+  const h = 640;
+  const baseLeft = window.screenLeft ?? window.screenX ?? 0;
+  const baseTop = window.screenTop ?? window.screenY ?? 0;
+  const viewW = window.innerWidth || document.documentElement.clientWidth || w;
+  const viewH = window.innerHeight || document.documentElement.clientHeight || h;
+  const left = baseLeft + Math.max(0, (viewW - w) / 2);
+  const top = baseTop + Math.max(0, (viewH - h) / 2);
+  return window.open(
+    "about:blank",
+    "vn-google-auth",
+    `popup=yes,width=${w},height=${h},left=${left},top=${top}`,
+  );
+}
+
+export function AuthForm({ redirectTo = "/apply" }: { redirectTo?: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const popupRef = useRef<Window | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const next = redirectTo.startsWith("/") ? redirectTo : `/${redirectTo}`;
+
+  useEffect(() => {
+    function stopPolling() {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data === "vn-auth-success") {
+        stopPolling();
+        popupRef.current?.close();
+        popupRef.current = null;
+        setLoading(false);
+        router.replace(next);
+        router.refresh();
+      } else if (event.data === "vn-auth-error") {
+        stopPolling();
+        popupRef.current?.close();
+        popupRef.current = null;
+        setLoading(false);
+        setError("Sign-in failed. Please try again.");
+      }
+    }
+
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      stopPolling();
+    };
+  }, [router, next]);
 
   async function signInWithGoogle() {
     setLoading(true);
     setError(null);
+
+    // Open synchronously so the browser does not treat it as a blocked popup.
+    const popup = openCenteredPopup();
+    popupRef.current = popup;
+
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithOAuth({
+    const { data, error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/`,
+        skipBrowserRedirect: true,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+          "/auth/popup-done",
+        )}`,
       },
     });
-    if (authError) {
-      setError(authError.message);
+
+    if (authError || !data?.url) {
+      popup?.close();
+      popupRef.current = null;
+      setError(authError?.message ?? "Could not start sign-in.");
       setLoading(false);
+      return;
     }
+
+    if (!popup || popup.closed) {
+      // Popup blocked — fall back to a full-page redirect.
+      window.location.href = data.url;
+      return;
+    }
+
+    popup.location.href = data.url;
+
+    // Reset state if the user closes the popup without finishing.
+    pollRef.current = setInterval(() => {
+      if (popupRef.current?.closed) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setLoading(false);
+      }
+    }, 500);
   }
 
   return (
@@ -32,11 +117,14 @@ export function AuthForm() {
         className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-black/10 bg-white text-base font-medium text-black disabled:opacity-60"
       >
         <GoogleIcon />
-        {loading ? "Redirecting…" : "Continue with Google"}
+        {loading ? "Waiting for Google…" : "Continue with Google"}
       </button>
-      {error ? (
-        <p className="mt-3 text-sm text-red-600">{error}</p>
+      {loading ? (
+        <p className="mt-3 text-xs text-black/50">
+          A Google sign-in window opened. Finish there, or close it to cancel.
+        </p>
       ) : null}
+      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
     </div>
   );
 }

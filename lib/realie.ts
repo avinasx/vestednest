@@ -1,4 +1,7 @@
-import type { ParsedAddress } from "./address";
+import {
+  buildPropertySearchParams,
+  type ParsedAddress,
+} from "./address";
 
 const REALIE_BASE = "https://app.realie.ai/api";
 
@@ -48,7 +51,9 @@ export async function lookupProperty(
   }
   if (parsed.city) {
     baseParams.city = parsed.city;
-    baseParams.county = parsed.county ?? parsed.city;
+  }
+  if (parsed.county && parsed.county !== parsed.city) {
+    baseParams.county = parsed.county;
   }
 
   const addressLookup = await realieFetch(
@@ -104,4 +109,101 @@ export async function lookupProperty(
         : "Property not found for this address";
 
   return { property: null, error: searchErr, source: null };
+}
+
+export type AddressSuggestion = {
+  id: string;
+  label: string;
+  streetAddress: string;
+  city: string | null;
+  state: string;
+  zip: string | null;
+  county: string | null;
+  /** Full Realie search hit — used on submit so we do not re-lookup and miss. */
+  property: Record<string, unknown>;
+};
+
+function formatSuggestion(
+  property: Record<string, unknown>,
+  index: number,
+): AddressSuggestion | null {
+  const state =
+    (typeof property.state === "string" && property.state) || "";
+  const label =
+    (typeof property.addressFull === "string" && property.addressFull) ||
+    (typeof property.addressFullUSPS === "string" &&
+      property.addressFullUSPS) ||
+    (typeof property.address === "string" && property.address) ||
+    "";
+
+  if (!label || !state) return null;
+
+  const streetAddress =
+    (typeof property.addressLine1 === "string" && property.addressLine1) ||
+    (typeof property.address === "string" && property.address) ||
+    label.split(",")[0]?.trim() ||
+    label;
+
+  return {
+    id:
+      (typeof property.state_parcelIdSTD === "string" &&
+        property.state_parcelIdSTD) ||
+      (typeof property._id === "string" && property._id) ||
+      `${state}-${index}-${streetAddress}`,
+    label,
+    streetAddress,
+    city: typeof property.city === "string" ? property.city : null,
+    state,
+    zip: typeof property.zipCode === "string" ? property.zipCode : null,
+    county: typeof property.county === "string" ? property.county : null,
+    property,
+  };
+}
+
+/** Partial street search — requires 2-letter state (Realie property search). */
+export async function searchAddressSuggestions(
+  query: string,
+  state: string,
+  limit = 8,
+): Promise<{ suggestions: AddressSuggestion[]; error: string | null }> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) {
+    return { suggestions: [], error: null };
+  }
+
+  const searchParams = buildPropertySearchParams(trimmed, state);
+  const { response, body } = await realieFetch("/public/property/search/", {
+    ...searchParams,
+    limit: String(Math.min(limit, 20)),
+  });
+
+  if (!response.ok) {
+    const err =
+      typeof body.error === "string"
+        ? body.error
+        : `Address search failed (${response.status})`;
+    return { suggestions: [], error: err };
+  }
+
+  const properties = body.properties;
+  if (!Array.isArray(properties)) {
+    return { suggestions: [], error: null };
+  }
+
+  const suggestions = properties
+    .map((p, i) =>
+      p && typeof p === "object"
+        ? formatSuggestion(p as Record<string, unknown>, i)
+        : null,
+    )
+    .filter((s): s is AddressSuggestion => s !== null);
+
+  const seen = new Set<string>();
+  const unique = suggestions.filter((s) => {
+    if (seen.has(s.label)) return false;
+    seen.add(s.label);
+    return true;
+  });
+
+  return { suggestions: unique, error: null };
 }

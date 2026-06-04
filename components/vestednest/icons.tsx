@@ -1,6 +1,15 @@
-export function ArrowRight({ className = "size-4" }: { className?: string }) {
+function iconClass(defaultSize: string, className?: string) {
+  return className ? `${defaultSize} shrink-0 ${className}` : defaultSize;
+}
+
+export function ArrowRight({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+    <svg
+      className={iconClass("size-4", className)}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
       <path
         d="M3 8h10M9 4l4 4-4 4"
         stroke="currentColor"
@@ -12,17 +21,27 @@ export function ArrowRight({ className = "size-4" }: { className?: string }) {
   );
 }
 
-export function PlayIcon({ className = "size-4" }: { className?: string }) {
+export function PlayIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+    <svg
+      className={iconClass("size-4", className)}
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden
+    >
       <path d="M5 3.5v9l7-4.5-7-4.5z" />
     </svg>
   );
 }
 
-export function ChevronDown({ className = "size-4" }: { className?: string }) {
+export function ChevronDown({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+    <svg
+      className={iconClass("size-4", className)}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+    >
       <path
         d="M4 6l4 4 4-4"
         stroke="currentColor"

@@ -1,3 +1,4 @@
+import { ApplyLink } from "./apply-link";
 import { ArrowRight } from "./icons";
 import { Section } from "./section";
 
@@ -12,13 +13,10 @@ export function FinalCta() {
           Sixty seconds to a real indicative term sheet. Fourteen days to a
           closed loan. The property does the qualifying.
         </p>
-        <a
-          href="#"
-          className="mt-10 inline-flex h-14 items-center gap-2 rounded-full bg-black px-8 text-lg font-semibold text-white"
-        >
+        <ApplyLink className="mt-10 inline-flex h-14 items-center gap-2 rounded-full bg-black px-8 text-lg font-semibold text-white">
           Start with an address
           <ArrowRight />
-        </a>
+        </ApplyLink>
         <p className="mx-auto mt-10 max-w-[915px] text-sm font-light leading-6 text-black/60">
           Equal Housing Lender · Lending in 38 states · Business-purpose loans
           to LLC borrowers · Non-owner-occupied investment properties only

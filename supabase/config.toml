@@ -1,0 +1,3 @@
+# Minimal Supabase CLI config. The project ref is public (it is part of the
+# project URL) and is used by `supabase link` / `supabase db push` in CI.
+project_id = "axtzwpoosurrtmhidbsm"
