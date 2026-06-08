@@ -20,3 +20,17 @@ export type DealState = {
   prepay: "none" | "3yr" | "5yr";
   purpose: "purchase" | "cashout" | "bridge";
 };
+
+export type CloseTrackerData = {
+  application: { id: string; status: string; address: string };
+  steps: { label: string; pct: number; status: string }[];
+  daysToClose: number;
+  loanOfficer: {
+    name: string;
+    email: string;
+    phone: string | null;
+    title: string | null;
+    avatar_initials: string | null;
+  };
+  twilioEnabled: boolean;
+};

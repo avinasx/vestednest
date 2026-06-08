@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
 import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
+import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type {
   BorrowerType,
   InvestmentHorizon,
+  Json,
   LoanStrategy,
 } from "@/types/database";
 
@@ -14,7 +17,6 @@ export type InquiryPayload = {
   ficoBand: string;
   intendedHorizon: InvestmentHorizon;
   borrowerType: BorrowerType;
-  /** Property record from autocomplete — avoids a second Realie lookup that often 404s. */
   selectedProperty?: Record<string, unknown> | null;
   structuredAddress?: {
     streetAddress: string;
@@ -80,9 +82,44 @@ export async function POST(request: Request) {
     }
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const writer = createServiceClient() ?? supabase;
+
+  const { data: inquiry, error: insertError } = await writer
+    .from("loan_inquiries")
+    .insert({
+      user_id: user?.id ?? null,
+      loan_strategy: body.loanStrategy,
+      street_address: parsed.streetAddress,
+      city: parsed.city,
+      county: parsed.county,
+      state: parsed.state,
+      unit_number: parsed.unitNumber,
+      country: "US",
+      down_payment_pct: body.downPaymentPct,
+      fico_band: body.ficoBand,
+      intended_horizon: body.intendedHorizon,
+      borrower_type: body.borrowerType,
+      realie_property: realieProperty as Json,
+      realie_error: realieError,
+      status: realieProperty ? "property_found" : "submitted",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("loan_inquiries insert error:", insertError);
+    return NextResponse.json(
+      { error: "Failed to save inquiry" },
+      { status: 500 },
+    );
+  }
+
   return NextResponse.json({
     status: realieProperty ? "property_found" : "submitted",
     property: realieProperty,
     realieError,
+    inquiryId: inquiry?.id,
   });
 }

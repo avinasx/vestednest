@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { calculateTermSheet } from "@/lib/dscr";
-import type { ChatMessage, DealState } from "./types";
+import type { ChatMessage, CloseTrackerData, DealState } from "./types";
 import { getSessionId } from "./utils";
 
 export function useLoanFlow() {
   const [screen, setScreen] = useState(0);
   const [heroInput, setHeroInput] = useState("");
+  const [heroState, setHeroState] = useState("GA");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -25,7 +26,12 @@ export function useLoanFlow() {
   const [borrowerType, setBorrowerType] = useState<DealState["borrowerType"]>("llc");
   const [advOpen, setAdvOpen] = useState(false);
   const [classicMode, setClassicMode] = useState(false);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
   const [loanId] = useState(() => `VN-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [closeTracker, setCloseTracker] = useState<CloseTrackerData | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const chatInit = useRef(false);
   const loadInit = useRef(false);
@@ -45,6 +51,7 @@ export function useLoanFlow() {
       interestOnly,
       fico,
       borrowerType,
+      state: deal?.intel.state,
     });
   }, [
     deal,
@@ -62,6 +69,46 @@ export function useLoanFlow() {
   const dscrPct = liveTermSheet
     ? Math.min(100, Math.round((liveTermSheet.dscr / 1.5) * 100))
     : 0;
+
+  const saveApplication = useCallback(
+    async (overrides?: {
+      status?: string;
+      propertyIntel?: DealState["intel"];
+      termSheet?: ReturnType<typeof calculateTermSheet>;
+    }) => {
+      const address = deal?.formattedAddress ?? heroInput;
+      if (!address.trim()) return null;
+
+      const body = {
+        sessionId: getSessionId(),
+        applicationId: applicationId ?? undefined,
+        address,
+        propertyIntel: overrides?.propertyIntel ?? deal?.intel,
+        termSheet: overrides?.termSheet ?? liveTermSheet ?? deal?.termSheet,
+        fico,
+        borrowerType,
+        purpose,
+        status: overrides?.status,
+      };
+
+      try {
+        const res = await fetch("/api/applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (res.ok && data.application?.id) {
+          setApplicationId(data.application.id);
+          return data.application.id as string;
+        }
+      } catch {
+        // Persistence is best-effort during flow
+      }
+      return applicationId;
+    },
+    [applicationId, borrowerType, deal, fico, heroInput, liveTermSheet, purpose],
+  );
 
   const goTo = useCallback((n: number) => {
     if (n < 0 || n > 7) return;
@@ -99,8 +146,26 @@ export function useLoanFlow() {
       });
       setMonthlyRent(data.intel.estimatedRent);
       setPurchasePrice(price);
+      if (data.intel.state) setHeroState(data.intel.state);
+
+      void (async () => {
+        const res = await fetch("/api/applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: getSessionId(),
+            applicationId: applicationId ?? undefined,
+            address: data.formattedAddress,
+            propertyIntel: data.intel,
+            termSheet: data.termSheet,
+            status: "property_loaded",
+          }),
+        });
+        const json = await res.json();
+        if (json.application?.id) setApplicationId(json.application.id);
+      })();
     },
-    [],
+    [applicationId],
   );
 
   const sendChat = useCallback(
@@ -182,6 +247,92 @@ export function useLoanFlow() {
     [goTo, heroInput],
   );
 
+  const downloadPdf = useCallback(async () => {
+    let id = applicationId;
+    if (!id) {
+      id = await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
+    } else {
+      await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
+    }
+    if (!id) return;
+    window.open(`/api/term-sheet/pdf?id=${id}`, "_blank");
+  }, [applicationId, liveTermSheet, saveApplication]);
+
+  const emailTermSheet = useCallback(async () => {
+    if (!emailInput.includes("@")) {
+      setEmailStatus("Enter a valid email address");
+      return;
+    }
+    let id = applicationId;
+    if (!id) {
+      id = await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
+    } else {
+      await saveApplication({ status: "term_sheet" });
+    }
+    if (!id) {
+      setEmailStatus("Save the application first");
+      return;
+    }
+
+    setEmailStatus("Sending…");
+    try {
+      const res = await fetch("/api/term-sheet/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, email: emailInput }),
+      });
+      const data = await res.json();
+      setEmailStatus(data.message ?? (data.ok ? "Sent!" : "Failed to send"));
+    } catch {
+      setEmailStatus("Failed to send email");
+    }
+  }, [applicationId, emailInput, liveTermSheet, saveApplication]);
+
+  const submitPrequal = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      let id = applicationId;
+      if (!id) {
+        id = await saveApplication({
+          status: "term_sheet",
+          termSheet: liveTermSheet ?? undefined,
+        });
+      }
+      if (!id) throw new Error("Could not save application");
+
+      const res = await fetch(`/api/applications/${id}/prequal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consent: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Submit failed");
+
+      setApplicationId(id);
+      goTo(7);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [applicationId, goTo, liveTermSheet, saveApplication]);
+
+  const initiateCall = useCallback(async () => {
+    if (!closeTracker?.loanOfficer?.phone) return;
+    try {
+      await fetch("/api/calls/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: closeTracker.loanOfficer.phone,
+          applicationId: applicationId ?? undefined,
+        }),
+      });
+    } catch {
+      // Call stub — user may need to dial manually
+    }
+  }, [applicationId, closeTracker]);
+
   const resetFlow = useCallback(() => {
     chatInit.current = false;
     loadInit.current = false;
@@ -190,6 +341,9 @@ export function useLoanFlow() {
     setHeroInput("");
     setLoadStep(-1);
     setLoadDone(false);
+    setApplicationId(null);
+    setCloseTracker(null);
+    setEmailStatus(null);
     goTo(0);
   }, [goTo]);
 
@@ -217,7 +371,7 @@ export function useLoanFlow() {
 
     const addr = deal?.formattedAddress ?? heroInput;
     if (addr && !deal) {
-      fetch(`/api/property?address=${encodeURIComponent(addr)}`)
+      fetch(`/api/property?address=${encodeURIComponent(addr)}&state=${heroState}`)
         .then((r) => r.json())
         .then((data) => {
           if (data.intel) applyProperty(data);
@@ -229,7 +383,23 @@ export function useLoanFlow() {
       setTimeout(() => setLoadStep(i), i * 650);
     }
     setTimeout(() => setLoadDone(true), 5 * 650 + 400);
-  }, [screen, deal, heroInput, applyProperty]);
+  }, [screen, deal, heroInput, heroState, applyProperty]);
+
+  useEffect(() => {
+    if (screen === 4 && liveTermSheet && deal) {
+      void saveApplication({ status: "term_sheet", termSheet: liveTermSheet });
+    }
+  }, [screen, liveTermSheet, deal, saveApplication]);
+
+  useEffect(() => {
+    if (screen !== 7 || !applicationId) return;
+    fetch(`/api/close-tracker?id=${applicationId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.application) setCloseTracker(data);
+      })
+      .catch(() => {});
+  }, [screen, applicationId]);
 
   const addressLabel = deal?.formattedAddress ?? heroInput;
 
@@ -239,6 +409,8 @@ export function useLoanFlow() {
     goNext,
     heroInput,
     setHeroInput,
+    heroState,
+    setHeroState,
     chatInput,
     setChatInput,
     messages,
@@ -269,6 +441,7 @@ export function useLoanFlow() {
     classicMode,
     setClassicMode,
     loanId,
+    applicationId,
     logRef,
     liveTermSheet,
     dscrPct,
@@ -277,5 +450,14 @@ export function useLoanFlow() {
     handleAction,
     startFromHero,
     resetFlow,
+    downloadPdf,
+    emailInput,
+    setEmailInput,
+    emailTermSheet,
+    emailStatus,
+    submitPrequal,
+    submitting,
+    closeTracker,
+    initiateCall,
   };
 }

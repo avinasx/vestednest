@@ -1,5 +1,6 @@
 "use client";
 
+import { AddressAutocomplete } from "@/components/vestednest/address-autocomplete";
 import { HomeIcon, MicIcon, SendIcon } from "./icons";
 import { useLoanFlow } from "./use-loan-flow";
 import {
@@ -196,21 +197,19 @@ export function AppFlow() {
                 <div className="ai-ico">
                   <HomeIcon />
                 </div>
-                <textarea
-                  className="ai-inp"
-                  rows={1}
-                  placeholder="Drop an address, or ask — e.g. I want to refi out of my bridge loan"
+                <AddressAutocomplete
+                  compact
                   value={f.heroInput}
-                  onChange={(e) => {
-                    f.setHeroInput(e.target.value);
-                    autoResize(e.target);
+                  stateCode={f.heroState}
+                  onValueChange={f.setHeroInput}
+                  onStateChange={f.setHeroState}
+                  onSelect={(s) => {
+                    f.setHeroInput(s.label);
+                    if (s.state) f.setHeroState(s.state);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      f.startFromHero();
-                    }
-                  }}
+                  placeholder="Drop an address, or ask — e.g. I want to refi out of my bridge loan"
+                  inputClassName="ai-inp"
+                  onSubmit={() => f.startFromHero()}
                 />
                 <button type="button" className="amic" aria-label="Voice input">
                   <MicIcon />
@@ -373,17 +372,22 @@ export function AppFlow() {
                 marginTop: 12,
               }}
             >
-              <input
-                className="cinp"
-                placeholder="Reply here, or drop a property address…"
+              <AddressAutocomplete
+                compact
                 value={f.chatInput}
-                onChange={(e) => f.setChatInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const v = f.chatInput;
-                    f.setChatInput("");
-                    f.sendChat(v);
-                  }
+                stateCode={f.heroState}
+                onValueChange={f.setChatInput}
+                onStateChange={f.setHeroState}
+                onSelect={(s) => {
+                  f.setChatInput(s.label);
+                  if (s.state) f.setHeroState(s.state);
+                }}
+                placeholder="Reply here, or drop a property address…"
+                inputClassName="cinp"
+                onSubmit={() => {
+                  const v = f.chatInput;
+                  f.setChatInput("");
+                  f.sendChat(v);
                 }}
               />
               <button
@@ -791,7 +795,7 @@ export function AppFlow() {
               vestednest
             </div>
             <span style={{ fontSize: 12, color: "var(--dt)" }}>{shortAddr}</span>
-            <button type="button" className="btn g sm" onClick={() => f.goTo(5)}>
+            <button type="button" className="btn g sm" onClick={() => { f.downloadPdf(); f.goTo(5); }}>
               Download term sheet →
             </button>
           </nav>
@@ -974,7 +978,7 @@ export function AppFlow() {
                   </div>
                 </div>
               </div>
-              <button type="button" className="btn g fw mt12" style={{ fontSize: 14 }} onClick={() => f.goTo(5)}>
+              <button type="button" className="btn g fw mt12" style={{ fontSize: 14 }} onClick={() => { f.downloadPdf(); f.goTo(5); }}>
                 Download term sheet PDF →
               </button>
               <p style={{ textAlign: "center", fontSize: 11, color: "var(--td)", marginTop: 7 }}>
@@ -1111,6 +1115,8 @@ export function AppFlow() {
                     <input
                       type="email"
                       placeholder="your@email.com"
+                      value={f.emailInput}
+                      onChange={(e) => f.setEmailInput(e.target.value)}
                       style={{
                         width: "100%",
                         padding: "11px 13px",
@@ -1122,9 +1128,12 @@ export function AppFlow() {
                         marginBottom: 11,
                       }}
                     />
-                    <button type="button" className="btn old fw" style={{ justifyContent: "center" }}>
+                    <button type="button" className="btn old fw" style={{ justifyContent: "center" }} onClick={() => f.emailTermSheet()}>
                       Email me this term sheet
                     </button>
+                    {f.emailStatus ? (
+                      <p style={{ fontSize: 11, color: "var(--dt)", marginTop: 8, textAlign: "center" }}>{f.emailStatus}</p>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -1144,8 +1153,8 @@ export function AppFlow() {
             <span className="bdot" />
             Pre-qualification · Soft pull only
           </div>
-          <button type="button" className="btn g sm" onClick={() => f.goTo(7)}>
-            Submit →
+          <button type="button" className="btn g sm" onClick={() => f.submitPrequal()} disabled={f.submitting}>
+            {f.submitting ? "Submitting…" : "Submit →"}
           </button>
         </nav>
         <div style={{ overflowY: "auto", flex: 1, paddingBottom: 60 }}>
@@ -1201,8 +1210,8 @@ export function AppFlow() {
                     Clicking below authorizes a <strong>soft credit pull only</strong>. No hard
                     inquiry until formal application.
                   </p>
-                  <button type="button" className="btn g fw mb7" style={{ justifyContent: "center", padding: 15 }} onClick={() => f.goTo(7)}>
-                    Submit for pre-qualification
+                  <button type="button" className="btn g fw mb7" style={{ justifyContent: "center", padding: 15 }} onClick={() => f.submitPrequal()} disabled={f.submitting}>
+                    {f.submitting ? "Submitting…" : "Submit for pre-qualification"}
                   </button>
                 </div>
               </div>
@@ -1236,7 +1245,7 @@ export function AppFlow() {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div className="serif" style={{ fontSize: 60, fontWeight: 800, color: "var(--f)", lineHeight: 1 }}>
-                  14
+                  {f.closeTracker?.daysToClose ?? 14}
                 </div>
                 <div className="lgsec muted">DAYS TO CLOSE</div>
               </div>
@@ -1249,38 +1258,44 @@ export function AppFlow() {
                 <div style={{ fontSize: 12, color: "var(--dt)", marginBottom: 24 }}>
                   {intel.city} {intel.state} · DSCR Purchase · {fmtMoney(ts.loanAmount)} @ {ts.rate.toFixed(2)}%
                 </div>
-                {[
-                  ["Submitted", 100, "g", "Done ✓"],
-                  ["Appraisal", 30, "am", "Day 1–3"],
-                  ["Underwriting", 15, "am", "Parallel"],
-                  ["Clear to close", 0, "g", "Day 10–12"],
-                  ["Wire + Close", 0, "g", "Day 14"],
-                ].map(([label, pct, color, status], i) => (
-                  <div key={label as string} className="tkrow" style={i === 4 ? { marginBottom: 0 } : undefined}>
-                    <div className="tklbl" style={i === 4 ? { color: "var(--f)", fontWeight: 700 } : undefined}>
-                      {label}
+                {(f.closeTracker?.steps ?? [
+                  { label: "Submitted", pct: 100, status: "Done ✓" },
+                  { label: "Appraisal", pct: 30, status: "Day 1–3" },
+                  { label: "Underwriting", pct: 15, status: "Parallel" },
+                  { label: "Clear to close", pct: 0, status: "Day 10–12" },
+                  { label: "Wire + Close", pct: 0, status: "Day 14" },
+                ]).map((step, i, arr) => {
+                  const color = step.pct === 100 ? "g" : step.pct > 0 ? "am" : "g";
+                  return (
+                  <div key={step.label} className="tkrow" style={i === arr.length - 1 ? { marginBottom: 0 } : undefined}>
+                    <div className="tklbl" style={i === arr.length - 1 ? { color: "var(--f)", fontWeight: 700 } : undefined}>
+                      {step.label}
                     </div>
                     <div className="tkbar">
-                      <div className={`tkfill ${color}`} style={{ width: `${pct}%` }} />
+                      <div className={`tkfill ${color}`} style={{ width: `${step.pct}%` }} />
                     </div>
                     <div style={{ width: 80 }}>
-                      <div className={`spill ${pct === 100 ? "lv" : "pd"}`} style={pct === 0 && i > 1 ? { opacity: 0.4 } : undefined}>
-                        {status}
+                      <div className={`spill ${step.pct === 100 ? "lv" : "pd"}`} style={step.pct === 0 && i > 1 ? { opacity: 0.4 } : undefined}>
+                        {step.status}
                       </div>
                     </div>
                   </div>
-                ))}
+                );})}
                 <div className="uwcard mt20">
-                  <div className="uwav">MR</div>
+                  <div className="uwav">{f.closeTracker?.loanOfficer?.avatar_initials ?? "MR"}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--dk)" }}>Marcus Rodriguez</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--dk)" }}>{f.closeTracker?.loanOfficer?.name ?? "Marcus Rodriguez"}</div>
                     <div style={{ fontSize: 12, color: "var(--dt)" }}>
-                      Your dedicated underwriter · Vested Nest
+                      {f.closeTracker?.loanOfficer?.title ?? "Your dedicated underwriter"} · Vested Nest
                     </div>
                   </div>
                   <div className="row gap7">
-                    <button type="button" className="btn old sm">📞 Call</button>
-                    <button type="button" className="btn old sm">✉ Email</button>
+                    {f.closeTracker?.twilioEnabled && f.closeTracker?.loanOfficer?.phone ? (
+                      <button type="button" className="btn old sm" onClick={() => f.initiateCall()}>📞 Call</button>
+                    ) : (
+                      <button type="button" className="btn old sm" disabled title="Configure Twilio to enable calls">📞 Call</button>
+                    )}
+                    <a href={`mailto:${f.closeTracker?.loanOfficer?.email ?? "marcus@vestednest.com"}`} className="btn old sm">✉ Email</a>
                   </div>
                 </div>
               </div>

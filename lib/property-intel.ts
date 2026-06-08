@@ -198,7 +198,7 @@ function applyRentCastEnrichment(
   return { ...intel, estimatedRent, marketValue, arv, rentComps, rentSource };
 }
 
-/** Build demo-ready property intel from a Realie record. */
+/** Build property intel from a Realie record. */
 export function buildPropertyIntel(
   property: Record<string, unknown>,
   nearby: Record<string, unknown>[] = [],

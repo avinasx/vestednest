@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
-import { calculateTermSheet } from "@/lib/dscr";
+import { calculateTermSheetAsync } from "@/lib/dscr";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
 import {
   lookupProperty,
@@ -9,6 +10,9 @@ import {
 } from "@/lib/realie";
 
 export async function GET(request: Request) {
+  const limited = checkRateLimit(request, "/api/property", 30);
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address") ?? "";
   const state = searchParams.get("state") ?? "";
@@ -26,7 +30,7 @@ export async function GET(request: Request) {
         const intel = await enrichPropertyIntel(
           buildPropertyIntel(result.property, nearby),
         );
-        const termSheet = calculateTermSheet({
+        const termSheet = await calculateTermSheetAsync({
           purchasePrice: intel.arv || intel.marketValue || 300000,
           downPaymentPct: 25,
           monthlyRent: intel.estimatedRent,
@@ -35,6 +39,7 @@ export async function GET(request: Request) {
           term: "30yr",
           prepay: "3yr",
           interestOnly: false,
+          state: intel.state,
         });
         return NextResponse.json({
           intel,
@@ -64,7 +69,7 @@ export async function GET(request: Request) {
         await searchNearbyProperties(first.property, 4),
       ),
     );
-    const termSheet = calculateTermSheet({
+    const termSheet = await calculateTermSheetAsync({
       purchasePrice: intel.arv || intel.marketValue || 300000,
       downPaymentPct: 25,
       monthlyRent: intel.estimatedRent,
@@ -73,6 +78,7 @@ export async function GET(request: Request) {
       term: "30yr",
       prepay: "3yr",
       interestOnly: false,
+      state: intel.state,
     });
 
     return NextResponse.json({

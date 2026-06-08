@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublishableKey } from "./env";
 
-/** Demo mode: refresh Supabase session cookies but do not gate any routes. */
+const PROTECTED_PAGE_PREFIXES = ["/admin", "/apply"];
+const PROTECTED_API_PREFIXES = ["/api/admin"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -27,6 +29,28 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  const isProtectedPage = PROTECTED_PAGE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+  const isProtectedApi = PROTECTED_API_PREFIXES.some((p) =>
+    pathname.startsWith(p),
+  );
+
+  if ((isProtectedPage || isProtectedApi) && !user) {
+    if (isProtectedApi) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   return supabaseResponse;
 }

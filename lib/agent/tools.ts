@@ -1,7 +1,9 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { parseUsAddress } from "@/lib/address";
-import { calculateTermSheet } from "@/lib/dscr";
+import { calculateTermSheet, calculateTermSheetAsync } from "@/lib/dscr";
+import { isStateEligible } from "@/lib/eligibility";
+import { searchKnowledgeBase } from "@/lib/knowledge-base";
 import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
 import {
   lookupProperty,
@@ -62,7 +64,7 @@ export const lookupPropertyTool = tool(
       buildPropertyIntel(resolved.property, resolved.nearby),
     );
     const formattedAddress = formatAddress(intel);
-    const termSheet = calculateTermSheet({
+    const termSheet = await calculateTermSheetAsync({
       purchasePrice: intel.arv || intel.marketValue || 300000,
       downPaymentPct: 25,
       monthlyRent: intel.estimatedRent,
@@ -71,6 +73,7 @@ export const lookupPropertyTool = tool(
       term: "30yr",
       prepay: "3yr",
       interestOnly: false,
+      state: intel.state,
     });
 
     lastLookup = { intel, formattedAddress, termSheetAt25Down: termSheet };
@@ -88,6 +91,7 @@ export const lookupPropertyTool = tool(
       dscrAt25Down: termSheet.dscr,
       rateAt25Down: termSheet.rate,
       monthlyPitia: termSheet.monthlyPitia,
+      state: intel.state,
     });
   },
   {
@@ -105,8 +109,8 @@ export const lookupPropertyTool = tool(
 );
 
 export const calculateDscrTool = tool(
-  async ({ purchasePrice, downPaymentPct, monthlyRent, annualTax, interestOnly }) => {
-    const termSheet = calculateTermSheet({
+  async ({ purchasePrice, downPaymentPct, monthlyRent, annualTax, interestOnly, state }) => {
+    const termSheet = await calculateTermSheetAsync({
       purchasePrice,
       downPaymentPct,
       monthlyRent,
@@ -115,6 +119,7 @@ export const calculateDscrTool = tool(
       term: "30yr",
       prepay: "3yr",
       interestOnly: interestOnly ?? false,
+      state,
     });
 
     return JSON.stringify({
@@ -136,8 +141,56 @@ export const calculateDscrTool = tool(
       monthlyRent: z.number(),
       annualTax: z.number(),
       interestOnly: z.boolean().optional(),
+      state: z.string().optional().describe("Two-letter US state code"),
     }),
   },
 );
 
-export const nestTools = [lookupPropertyTool, calculateDscrTool];
+export const searchKnowledgeBaseTool = tool(
+  async ({ query }) => {
+    const results = await searchKnowledgeBase(query, 5);
+    if (!results) {
+      return JSON.stringify({
+        found: false,
+        message: "No knowledge base results. Use product facts from system prompt.",
+      });
+    }
+    return JSON.stringify({ found: true, content: results });
+  },
+  {
+    name: "search_knowledge_base",
+    description:
+      "Search Vested Nest lending knowledge base for policies, product details, state eligibility, rate guidelines, and FAQ answers.",
+    schema: z.object({
+      query: z.string().describe("Search query for lending knowledge"),
+    }),
+  },
+);
+
+export const checkStateEligibilityTool = tool(
+  async ({ state }) => {
+    const result = await isStateEligible(state);
+    return JSON.stringify({
+      state: result.state,
+      eligible: result.eligible,
+      fundedStateCount: result.fundedStates.length,
+      message: result.eligible
+        ? `${result.state} is a funded state for Vested Nest DSCR loans.`
+        : `${result.state} is not currently funded. Vested Nest funds ${result.fundedStates.length} states.`,
+    });
+  },
+  {
+    name: "check_state_eligibility",
+    description: "Check if a US state is eligible for Vested Nest DSCR lending.",
+    schema: z.object({
+      state: z.string().describe("Two-letter US state code, e.g. GA, FL, TX"),
+    }),
+  },
+);
+
+export const nestTools = [
+  lookupPropertyTool,
+  calculateDscrTool,
+  searchKnowledgeBaseTool,
+  checkStateEligibilityTool,
+];

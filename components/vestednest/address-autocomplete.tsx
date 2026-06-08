@@ -13,6 +13,10 @@ type AddressAutocompleteProps = {
   onStateChange: (stateCode: string) => void;
   onSelect: (suggestion: AddressSuggestion) => void;
   disabled?: boolean;
+  compact?: boolean;
+  placeholder?: string;
+  inputClassName?: string;
+  onSubmit?: () => void;
 };
 
 export function AddressAutocomplete({
@@ -22,6 +26,10 @@ export function AddressAutocomplete({
   onStateChange,
   onSelect,
   disabled = false,
+  compact = false,
+  placeholder = "Start typing a street address (e.g. 123 Main)",
+  inputClassName,
+  onSubmit,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -132,20 +140,12 @@ export function AddressAutocomplete({
     }
   }
 
-  return (
-    <div ref={wrapperRef} className="space-y-3">
-      <div>
-        <label
-          htmlFor="property-address"
-          className="mb-2 block text-lg text-black"
-        >
-          Property address
-        </label>
-        <div className="relative">
+  const inputEl = (
+    <div className="relative">
           <input
-            id="property-address"
+            id={compact ? undefined : "property-address"}
             name="address"
-            required
+            required={!compact}
             autoComplete="off"
             role="combobox"
             aria-expanded={open}
@@ -160,9 +160,19 @@ export function AddressAutocomplete({
             onFocus={() => {
               if (suggestions.length > 0) setOpen(true);
             }}
-            onKeyDown={handleKeyDown}
-            placeholder="Start typing a street address (e.g. 123 Main)"
-            className="w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-sm font-light text-black outline-none focus:border-vn-green focus:ring-1 focus:ring-vn-green disabled:bg-[#f9f9f9]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && onSubmit && activeIndex < 0) {
+                e.preventDefault();
+                onSubmit();
+                return;
+              }
+              handleKeyDown(e);
+            }}
+            placeholder={placeholder}
+            className={
+              inputClassName ??
+              "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-sm font-light text-black outline-none focus:border-vn-green focus:ring-1 focus:ring-vn-green disabled:bg-[#f9f9f9]"
+            }
           />
           {loading ? (
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-black/40">
@@ -200,6 +210,29 @@ export function AddressAutocomplete({
             </ul>
           ) : null}
         </div>
+  );
+
+  if (compact) {
+    return (
+      <div ref={wrapperRef} className="relative flex-1">
+        {inputEl}
+        {fetchError && !open ? (
+          <p className="absolute left-0 top-full mt-1 text-xs text-red-400">{fetchError}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={wrapperRef} className="space-y-3">
+      <div>
+        <label
+          htmlFor="property-address"
+          className="mb-2 block text-lg text-black"
+        >
+          Property address
+        </label>
+        {inputEl}
         {fetchError ? (
           <p className="mt-1 text-xs text-red-600">{fetchError}</p>
         ) : (

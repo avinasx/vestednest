@@ -1,0 +1,149 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+type Doc = {
+  id: string;
+  title: string;
+  source_type: string;
+  content: string | null;
+  source_url: string | null;
+  created_at: string;
+};
+
+export function KnowledgeManager() {
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [sourceType, setSourceType] = useState<"markdown" | "url">("markdown");
+  const [content, setContent] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/knowledge");
+    const data = await res.json();
+    setDocs(data.documents ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const res = await fetch("/api/admin/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        source_type: sourceType,
+        content: sourceType === "markdown" ? content : undefined,
+        source_url: sourceType === "url" ? sourceUrl : undefined,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create");
+      return;
+    }
+
+    setTitle("");
+    setContent("");
+    setSourceUrl("");
+    await load();
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this document?")) return;
+    await fetch(`/api/admin/knowledge/${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  return (
+    <div className="space-y-8">
+      <form onSubmit={handleCreate} className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-black">Add document</h2>
+        <div className="mt-4 space-y-4">
+          <input
+            className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          <select
+            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            value={sourceType}
+            onChange={(e) => setSourceType(e.target.value as "markdown" | "url")}
+          >
+            <option value="markdown">Markdown text</option>
+            <option value="url">URL fetch</option>
+          </select>
+          {sourceType === "markdown" ? (
+            <textarea
+              className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm font-mono"
+              rows={8}
+              placeholder="Markdown content…"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+            />
+          ) : (
+            <input
+              className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm"
+              placeholder="https://…"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              required
+            />
+          )}
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <button
+            type="submit"
+            className="rounded-full bg-vn-green px-6 py-2 text-sm font-medium text-white"
+          >
+            Add & sync to Supermemory
+          </button>
+        </div>
+      </form>
+
+      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-black">Documents ({docs.length})</h2>
+        {loading ? (
+          <p className="mt-4 text-sm text-black/50">Loading…</p>
+        ) : docs.length === 0 ? (
+          <p className="mt-4 text-sm text-black/50">No documents yet.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-black/5">
+            {docs.map((doc) => (
+              <li key={doc.id} className="flex items-start justify-between py-4">
+                <div>
+                  <div className="font-medium text-black">{doc.title}</div>
+                  <div className="text-xs text-black/50">
+                    {doc.source_type} · {new Date(doc.created_at).toLocaleDateString()}
+                  </div>
+                  {doc.content ? (
+                    <p className="mt-1 line-clamp-2 text-sm text-black/60">{doc.content.slice(0, 200)}…</p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(doc.id)}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
