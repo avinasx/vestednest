@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { getIntegrationStatus } from "@/lib/settings";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export default async function AdminDashboardPage() {
   const service = createServiceClient();
+  const integrationStatus = await getIntegrationStatus();
 
   const [apps, inquiries, kb, lo] = service
     ? await Promise.all([
@@ -65,12 +67,13 @@ export default async function AdminDashboardPage() {
         <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-black">System status</h2>
           <ul className="mt-4 space-y-2 text-sm text-black/70">
-            <li>Supabase: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✓ Connected" : "✗ Missing"}</li>
-            <li>Realie: {process.env.REALIE_API_KEY ? "✓ Configured" : "○ Not set"}</li>
-            <li>Gemini: {process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY ? "✓ Configured" : "○ Not set"}</li>
-            <li>Supermemory: {process.env.SUPERMEMORY_API_KEY ? "✓ Configured" : "○ Not set"}</li>
-            <li>SendGrid: {process.env.SENDGRID_API_KEY ? "✓ Configured" : "○ Not set"}</li>
-            <li>Twilio: {process.env.TWILIO_ACCOUNT_SID ? "✓ Configured" : "○ Not set"}</li>
+            <li>Supabase: {integrationStatus.supabase ? "✓ Connected" : "✗ Missing"}</li>
+            <li>Realie: {integrationStatus.realie ? "✓ Configured" : "○ Not set"}</li>
+            <li>RentCast: {integrationStatus.rentcast ? "✓ Configured" : "○ Not set"}</li>
+            <li>Gemini: {integrationStatus.gemini ? "✓ Configured" : "○ Not set"}</li>
+            <li>Supermemory: {integrationStatus.supermemory ? "✓ Configured" : "○ Not set"}</li>
+            <li>SendGrid: {integrationStatus.sendgrid ? "✓ Configured" : "○ Not set"}</li>
+            <li>Twilio: {integrationStatus.twilio ? "✓ Configured" : "○ Not set"}</li>
           </ul>
         </section>
       </div>

@@ -4,8 +4,11 @@ import type { TermSheet } from "@/lib/dscr";
 import { generateTermSheetPdf } from "@/lib/pdf/term-sheet";
 import { sendTermSheetEmail } from "@/lib/sendgrid";
 import { termSheetFilename } from "@/components/flow/utils";
+import { ensureServerSettings } from "@/lib/settings";
 
 export async function POST(request: Request) {
+  await ensureServerSettings();
+
   try {
     const body = (await request.json()) as { id?: string; email?: string };
     const { id, email } = body;

@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { runNestAgent } from "@/lib/agent/nest-agent";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { ensureServerSettings } from "@/lib/settings";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const limited = checkRateLimit(request, "/api/chat", 20);
   if (limited) return limited;
+
+  await ensureServerSettings();
 
   try {
     const body = (await request.json()) as {

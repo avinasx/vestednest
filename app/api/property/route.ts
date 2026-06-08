@@ -3,6 +3,7 @@ import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
 import { calculateTermSheetAsync } from "@/lib/dscr";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
+import { ensureServerSettings } from "@/lib/settings";
 import {
   lookupProperty,
   searchAddressSuggestions,
@@ -12,6 +13,8 @@ import {
 export async function GET(request: Request) {
   const limited = checkRateLimit(request, "/api/property", 30);
   if (limited) return limited;
+
+  await ensureServerSettings();
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address") ?? "";

@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
+import { ADMIN_INTEGRATIONS_HINT, ensureServerSettings } from "@/lib/settings";
 import { initiateCallTransfer, isTwilioConfigured } from "@/lib/twilio";
 
 export async function POST(request: Request) {
+  await ensureServerSettings();
+
   if (!isTwilioConfigured()) {
     return NextResponse.json(
       {
         ok: false,
         error: "Twilio not configured",
-        hint: "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER",
+        hint: ADMIN_INTEGRATIONS_HINT,
       },
       { status: 503 },
     );

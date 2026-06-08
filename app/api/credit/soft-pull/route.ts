@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getClientIp } from "@/lib/rate-limit";
+import { ensureServerSettings } from "@/lib/settings";
 
 export async function POST(request: Request) {
+  await ensureServerSettings();
   const vendorKey = process.env.CREDIT_VENDOR_API_KEY;
 
   try {

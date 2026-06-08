@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireSuperadmin } from "@/lib/auth/admin";
-import { createServiceClient } from "@/lib/supabase/service";
 import type { RateSettings } from "@/lib/dscr";
+import { getIntegrationStatus } from "@/lib/settings";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
   const { error } = await requireSuperadmin();
@@ -12,20 +13,14 @@ export async function GET() {
     return NextResponse.json({ error: "Database not configured" }, { status: 500 });
   }
 
-  const { data } = await service.from("admin_settings").select("*").eq("id", 1).single();
+  const [{ data }, envStatus] = await Promise.all([
+    service.from("admin_settings").select("*").eq("id", 1).single(),
+    getIntegrationStatus(),
+  ]);
 
   return NextResponse.json({
     settings: data,
-    envStatus: {
-      supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-      realie: Boolean(process.env.REALIE_API_KEY),
-      rentcast: Boolean(process.env.RENTCAST_API_KEY),
-      gemini: Boolean(process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY),
-      supermemory: Boolean(process.env.SUPERMEMORY_API_KEY),
-      sendgrid: Boolean(process.env.SENDGRID_API_KEY),
-      twilio: Boolean(process.env.TWILIO_ACCOUNT_SID),
-      creditVendor: Boolean(process.env.CREDIT_VENDOR_API_KEY),
-    },
+    envStatus,
   });
 }
 
