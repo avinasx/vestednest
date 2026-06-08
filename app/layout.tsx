@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { DM_Sans, Fraunces, Geist } from "next/font/google";
 import "./globals.css";
+import "./vestednest.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -8,10 +9,22 @@ const geistSans = Geist({
   weight: ["300", "400", "500", "600"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["300", "500", "700", "800"],
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Vested Nest — DSCR & Bridge Loans",
+  title: "Vested Nest — The agentic DSCR lender",
   description:
-    "DSCR and bridge loans for serious operators. Real terms. Transparent pricing. Closings in as little as 14 days.",
+    "Drop an address. Get a DSCR term sheet in 60 seconds. Realie property data, Nest AI, live rates. Close in 14 days.",
 };
 
 export default function RootLayout({
@@ -20,8 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans">{children}</body>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${fraunces.variable} ${dmSans.variable} h-full antialiased`}
+    >
+      <body className="h-full overflow-hidden">{children}</body>
     </html>
   );
 }

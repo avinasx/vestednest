@@ -49,11 +49,12 @@ export async function lookupProperty(
   if (parsed.unitNumber) {
     baseParams.unitNumberStripped = parsed.unitNumber;
   }
-  if (parsed.city) {
+  // Realie requires county when city is set on address lookup.
+  if (parsed.city && parsed.county) {
     baseParams.city = parsed.city;
-  }
-  if (parsed.county && parsed.county !== parsed.city) {
-    baseParams.county = parsed.county;
+    if (parsed.county !== parsed.city) {
+      baseParams.county = parsed.county;
+    }
   }
 
   const addressLookup = await realieFetch(
@@ -83,7 +84,8 @@ export async function lookupProperty(
   }
 
   const search = await realieFetch("/public/property/search/", {
-    ...baseParams,
+    state: parsed.state,
+    query: parsed.streetAddress,
     limit: "1",
   });
 
@@ -172,8 +174,10 @@ export async function searchAddressSuggestions(
   }
 
   const searchParams = buildPropertySearchParams(trimmed, state);
+  const { address: searchQuery, ...rest } = searchParams;
   const { response, body } = await realieFetch("/public/property/search/", {
-    ...searchParams,
+    ...rest,
+    query: searchQuery,
     limit: String(Math.min(limit, 20)),
   });
 

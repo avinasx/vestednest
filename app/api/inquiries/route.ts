@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
 import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
-import { createClient } from "@/lib/supabase/server";
 import type {
   BorrowerType,
   InvestmentHorizon,
@@ -33,15 +32,6 @@ export async function POST(request: Request) {
     body = (await request.json()) as InquiryPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const parsed = body.structuredAddress
