@@ -2,8 +2,12 @@ import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { parseUsAddress } from "@/lib/address";
 import { calculateTermSheet } from "@/lib/dscr";
-import { buildPropertyIntel, formatAddress } from "@/lib/property-intel";
-import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
+import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
+import {
+  lookupProperty,
+  searchAddressSuggestions,
+  searchNearbyProperties,
+} from "@/lib/realie";
 
 export type PropertyLookupResult = {
   intel: ReturnType<typeof buildPropertyIntel>;
@@ -26,14 +30,7 @@ async function resolveProperty(address: string, state?: string) {
   if (parsed) {
     const result = await lookupProperty(parsed);
     if (result.property) {
-      const search = await searchAddressSuggestions(
-        parsed.streetAddress,
-        parsed.state,
-        4,
-      );
-      const nearby = search.suggestions
-        .map((s) => s.property)
-        .filter((p) => p !== result.property);
+      const nearby = await searchNearbyProperties(result.property, 4);
       return { property: result.property, nearby };
     }
   }
@@ -44,7 +41,7 @@ async function resolveProperty(address: string, state?: string) {
   if (first) {
     return {
       property: first.property,
-      nearby: search.suggestions.slice(1).map((s) => s.property),
+      nearby: await searchNearbyProperties(first.property, 4),
     };
   }
 
@@ -61,7 +58,9 @@ export const lookupPropertyTool = tool(
       });
     }
 
-    const intel = buildPropertyIntel(resolved.property, resolved.nearby);
+    const intel = await enrichPropertyIntel(
+      buildPropertyIntel(resolved.property, resolved.nearby),
+    );
     const formattedAddress = formatAddress(intel);
     const termSheet = calculateTermSheet({
       purchasePrice: intel.arv || intel.marketValue || 300000,

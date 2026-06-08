@@ -61,12 +61,65 @@ export type ParsedAddress = {
   zip: string | null;
 };
 
+function parseStateToken(token: string): string | null {
+  const t = token.trim();
+  if (t.length === 2) return t.toUpperCase();
+  return STATE_NAMES[t.toLowerCase()] ?? null;
+}
+
+/** "142 Oak Ridge Dr Atlanta GA 30315" or "Cascade Rd Atlanta GA" (no commas). */
+function parseLooseAddress(input: string): ParsedAddress | null {
+  let rest = input.trim();
+  if (!rest) return null;
+
+  let zip: string | null = null;
+  const zipMatch = rest.match(/\s+(\d{5}(?:-\d{4})?)$/);
+  if (zipMatch) {
+    zip = zipMatch[1];
+    rest = rest.slice(0, -zipMatch[0].length).trim();
+  }
+
+  const words = rest.split(/\s+/).filter(Boolean);
+  if (words.length < 3) return null;
+
+  const lastWord = words[words.length - 1];
+  const state = parseStateToken(lastWord);
+  if (!state) return null;
+
+  const city = words[words.length - 2];
+  let streetAddress = words.slice(0, -2).join(" ").trim();
+
+  let unitNumber: string | null = null;
+  const unitMatch = streetAddress.match(
+    /\b(?:apt|apartment|unit|ste|suite|#)\s*\.?\s*([\w-]+)\s*$/i,
+  );
+  if (unitMatch) {
+    unitNumber = unitMatch[1];
+    streetAddress = streetAddress
+      .slice(0, unitMatch.index)
+      .replace(/[,\s]+$/, "");
+  }
+
+  if (!streetAddress || !city) return null;
+
+  return {
+    streetAddress,
+    city,
+    county: null,
+    state,
+    unitNumber,
+    zip,
+  };
+}
+
 export function parseUsAddress(input: string): ParsedAddress | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
   const parts = trimmed.split(",").map((p) => p.trim()).filter(Boolean);
-  if (parts.length < 2) return null;
+  if (parts.length < 2) {
+    return parseLooseAddress(trimmed);
+  }
 
   const last = parts[parts.length - 1];
   const stateZipMatch = last.match(
@@ -153,6 +206,14 @@ export function buildPropertySearchParams(
       }
       return params;
     }
+  }
+
+  const loose = parseLooseAddress(trimmed);
+  if (loose) {
+    params.address = loose.streetAddress;
+    params.state = loose.state;
+    if (loose.city) params.city = loose.city;
+    return params;
   }
 
   params.address = trimmed;

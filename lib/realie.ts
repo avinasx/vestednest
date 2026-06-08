@@ -11,6 +11,13 @@ export type RealieLookupResult = {
   source: "address" | "search" | null;
 };
 
+export type MatchCriteria = {
+  streetAddress?: string;
+  city?: string | null;
+  zip?: string | null;
+  state?: string;
+};
+
 function getApiKey() {
   const key = process.env.REALIE_API_KEY;
   if (!key) {
@@ -38,9 +45,126 @@ async function realieFetch(path: string, params: Record<string, string>) {
   return { response, body };
 }
 
+function readNum(obj: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const v = obj[key];
+    if (typeof v === "number" && !Number.isNaN(v)) return v;
+    if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+  }
+  return null;
+}
+
+function propertyStreet(p: Record<string, unknown>): string {
+  const line1 =
+    (typeof p.addressLine1 === "string" && p.addressLine1) ||
+    (typeof p.address === "string" && p.address) ||
+    "";
+  if (line1) return line1.toLowerCase();
+
+  const num = typeof p.streetNumber === "string" ? p.streetNumber : "";
+  const street = typeof p.street === "string" ? p.street : "";
+  return `${num} ${street}`.trim().toLowerCase();
+}
+
+/** Parcel has assessor/building data worth showing (not a bare vacant lot stub). */
+export function propertyHasUsefulData(p: Record<string, unknown>): boolean {
+  const mv = readNum(p, [
+    "totalMarketValue",
+    "totalAssessedValue",
+    "marketValue",
+  ]);
+  const beds = readNum(p, ["totalBedrooms", "bedrooms"]);
+  const sqft = readNum(p, ["buildingArea", "livingArea", "squareFeet"]);
+  const buildingValue = readNum(p, ["assessedBuildingValue", "totalBuildingValue"]);
+  const hasCity = typeof p.city === "string" && p.city.trim().length > 0;
+  const hasZip = typeof p.zipCode === "string" && p.zipCode.trim().length > 0;
+  const streetNum = p.streetNumber;
+  const isZeroParcel = streetNum === "0" || streetNum === 0;
+
+  if ((mv ?? 0) > 0 || (beds ?? 0) > 0 || (sqft ?? 0) > 0 || (buildingValue ?? 0) > 0) {
+    return true;
+  }
+
+  return hasCity && hasZip && !isZeroParcel;
+}
+
+export function scorePropertyMatch(
+  p: Record<string, unknown>,
+  criteria: MatchCriteria,
+): number {
+  let score = 0;
+  const queryStreet = (criteria.streetAddress ?? "").trim().toLowerCase();
+  const propStreet = propertyStreet(p);
+
+  if (queryStreet && propStreet) {
+    if (propStreet === queryStreet) score += 100;
+    else if (propStreet.includes(queryStreet) || queryStreet.includes(propStreet)) {
+      score += 60;
+    } else {
+      const qTokens = new Set(queryStreet.split(/\s+/).filter(Boolean));
+      const overlap = propStreet
+        .split(/\s+/)
+        .filter((t) => qTokens.has(t)).length;
+      score += overlap * 12;
+    }
+  }
+
+  if (criteria.city && typeof p.city === "string") {
+    if (p.city.toLowerCase() === criteria.city.toLowerCase()) score += 45;
+  }
+
+  if (criteria.zip && typeof p.zipCode === "string") {
+    if (p.zipCode.startsWith(criteria.zip.slice(0, 5))) score += 35;
+  }
+
+  if (criteria.state && typeof p.state === "string") {
+    if (p.state.toUpperCase() === criteria.state.toUpperCase()) score += 10;
+  }
+
+  if (propertyHasUsefulData(p)) score += 30;
+
+  const streetNum = p.streetNumber;
+  if ((streetNum === "0" || streetNum === 0) && !propertyHasUsefulData(p)) {
+    score -= 80;
+  }
+
+  if (!p.city) score -= 25;
+  if (!p.zipCode) score -= 10;
+
+  return score;
+}
+
+export function pickBestProperty(
+  properties: unknown[],
+  criteria: MatchCriteria,
+): Record<string, unknown> | null {
+  const scored = properties
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === "object")
+    .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return null;
+
+  const best = scored[0];
+  if (best.score < 5) return null;
+  return best.p;
+}
+
+function matchCriteriaFromParsed(parsed: ParsedAddress): MatchCriteria {
+  return {
+    streetAddress: parsed.streetAddress,
+    city: parsed.city,
+    zip: parsed.zip,
+    state: parsed.state,
+  };
+}
+
 export async function lookupProperty(
   parsed: ParsedAddress,
 ): Promise<RealieLookupResult> {
+  const criteria = matchCriteriaFromParsed(parsed);
   const baseParams: Record<string, string> = {
     state: parsed.state,
     address: parsed.streetAddress,
@@ -73,32 +197,32 @@ export async function lookupProperty(
     }
   }
 
-  if (addressLookup.response.status !== 404) {
+  if (
+    addressLookup.response.status !== 404 &&
+    addressLookup.response.status !== 400
+  ) {
     const err =
       typeof addressLookup.body.error === "string"
         ? addressLookup.body.error
         : `Realie address lookup failed (${addressLookup.response.status})`;
-    if (addressLookup.response.status !== 404) {
-      return { property: null, error: err, source: null };
-    }
+    return { property: null, error: err, source: null };
   }
 
-  const search = await realieFetch("/public/property/search/", {
+  const searchParams: Record<string, string> = {
     state: parsed.state,
     query: parsed.streetAddress,
-    limit: "1",
-  });
+    limit: "20",
+  };
+  if (parsed.city) searchParams.city = parsed.city;
+
+  const search = await realieFetch("/public/property/search/", searchParams);
 
   if (search.response.ok) {
     const properties = search.body.properties;
     if (Array.isArray(properties) && properties.length > 0) {
-      const first = properties[0];
-      if (first && typeof first === "object") {
-        return {
-          property: first as Record<string, unknown>,
-          error: null,
-          source: "search",
-        };
+      const best = pickBestProperty(properties, criteria);
+      if (best) {
+        return { property: best, error: null, source: "search" };
       }
     }
   }
@@ -175,10 +299,12 @@ export async function searchAddressSuggestions(
 
   const searchParams = buildPropertySearchParams(trimmed, state);
   const { address: searchQuery, ...rest } = searchParams;
+  const fetchLimit = Math.min(Math.max(limit * 3, 15), 20);
+
   const { response, body } = await realieFetch("/public/property/search/", {
     ...rest,
     query: searchQuery,
-    limit: String(Math.min(limit, 20)),
+    limit: String(fetchLimit),
   });
 
   if (!response.ok) {
@@ -194,12 +320,21 @@ export async function searchAddressSuggestions(
     return { suggestions: [], error: null };
   }
 
-  const suggestions = properties
-    .map((p, i) =>
-      p && typeof p === "object"
-        ? formatSuggestion(p as Record<string, unknown>, i)
-        : null,
-    )
+  const criteria: MatchCriteria = {
+    streetAddress: searchQuery,
+    city: rest.city ?? null,
+    state: rest.state ?? state,
+  };
+
+  const ranked = properties
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === "object")
+    .map((p) => ({ p, score: scorePropertyMatch(p, criteria) }))
+    .filter(({ score }) => score >= 5)
+    .sort((a, b) => b.score - a.score)
+    .map(({ p }) => p);
+
+  const suggestions = ranked
+    .map((p, i) => formatSuggestion(p, i))
     .filter((s): s is AddressSuggestion => s !== null);
 
   const seen = new Set<string>();
@@ -209,5 +344,49 @@ export async function searchAddressSuggestions(
     return true;
   });
 
-  return { suggestions: unique, error: null };
+  return { suggestions: unique.slice(0, limit), error: null };
+}
+
+/** Nearby rentals/comps in the same city/zip with real assessor data. */
+export async function searchNearbyProperties(
+  property: Record<string, unknown>,
+  limit = 4,
+): Promise<Record<string, unknown>[]> {
+  const state = typeof property.state === "string" ? property.state : "";
+  const city = typeof property.city === "string" ? property.city : "";
+  const zip = typeof property.zipCode === "string" ? property.zipCode : "";
+  const parcelId = property.state_parcelIdSTD;
+  if (!state) return [];
+
+  const streetQuery =
+    (typeof property.street === "string" && property.street) ||
+    (typeof property.streetName === "string" && property.streetName) ||
+    (typeof property.addressLine1 === "string" ? property.addressLine1 : "") ||
+    city;
+
+  const searchParams: Record<string, string> = {
+    state,
+    query: streetQuery,
+    limit: "20",
+  };
+  if (city) searchParams.city = city;
+
+  const { response, body } = await realieFetch(
+    "/public/property/search/",
+    searchParams,
+  );
+
+  if (!response.ok || !Array.isArray(body.properties)) return [];
+
+  return body.properties
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === "object")
+    .filter((p) => p.state_parcelIdSTD !== parcelId)
+    .filter((p) => propertyHasUsefulData(p))
+    .filter(
+      (p) =>
+        !zip ||
+        (typeof p.zipCode === "string" &&
+          p.zipCode.slice(0, 3) === zip.slice(0, 3)),
+    )
+    .slice(0, limit);
 }

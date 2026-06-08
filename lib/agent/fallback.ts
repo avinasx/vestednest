@@ -1,7 +1,11 @@
 import { parseUsAddress } from "@/lib/address";
 import { calculateTermSheet } from "@/lib/dscr";
-import { buildPropertyIntel, formatAddress } from "@/lib/property-intel";
-import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
+import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
+import {
+  lookupProperty,
+  searchAddressSuggestions,
+  searchNearbyProperties,
+} from "@/lib/realie";
 import type { AgentResponse } from "./nest-agent";
 import { clearLastPropertyLookup, getLastPropertyLookup } from "./tools";
 
@@ -21,10 +25,9 @@ async function tryPropertyLookup(address: string) {
   if (parsed) {
     const result = await lookupProperty(parsed);
     if (result.property) {
-      const nearby = await searchAddressSuggestions(parsed.streetAddress, parsed.state, 4);
-      const intel = buildPropertyIntel(
-        result.property,
-        nearby.suggestions.map((s) => s.property),
+      const nearby = await searchNearbyProperties(result.property, 4);
+      const intel = await enrichPropertyIntel(
+        buildPropertyIntel(result.property, nearby),
       );
       const formattedAddress = formatAddress(intel);
       const termSheet = calculateTermSheet({
@@ -46,9 +49,11 @@ async function tryPropertyLookup(address: string) {
   const first = search.suggestions[0];
   if (!first) return null;
 
-  const intel = buildPropertyIntel(
-    first.property,
-    search.suggestions.slice(1).map((s) => s.property),
+  const intel = await enrichPropertyIntel(
+    buildPropertyIntel(
+      first.property,
+      await searchNearbyProperties(first.property, 4),
+    ),
   );
   const formattedAddress = formatAddress(intel);
   const termSheet = calculateTermSheet({

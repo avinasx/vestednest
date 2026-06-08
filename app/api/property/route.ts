@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
 import { calculateTermSheet } from "@/lib/dscr";
-import { buildPropertyIntel, formatAddress } from "@/lib/property-intel";
-import { lookupProperty, searchAddressSuggestions } from "@/lib/realie";
+import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
+import {
+  lookupProperty,
+  searchAddressSuggestions,
+  searchNearbyProperties,
+} from "@/lib/realie";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -18,14 +22,9 @@ export async function GET(request: Request) {
     if (parsed) {
       const result = await lookupProperty(parsed);
       if (result.property) {
-        const nearby = await searchAddressSuggestions(
-          parsed.streetAddress,
-          parsed.state,
-          4,
-        );
-        const intel = buildPropertyIntel(
-          result.property,
-          nearby.suggestions.map((s) => s.property),
+        const nearby = await searchNearbyProperties(result.property, 4);
+        const intel = await enrichPropertyIntel(
+          buildPropertyIntel(result.property, nearby),
         );
         const termSheet = calculateTermSheet({
           purchasePrice: intel.arv || intel.marketValue || 300000,
@@ -48,7 +47,7 @@ export async function GET(request: Request) {
 
     if (!state || state.length !== 2) {
       return NextResponse.json(
-        { error: "Could not parse address — include city, state, and ZIP" },
+        { error: "Could not parse address — include city and state (e.g. Cascade Rd Atlanta GA)" },
         { status: 400 },
       );
     }
@@ -59,9 +58,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
 
-    const intel = buildPropertyIntel(
-      first.property,
-      search.suggestions.slice(1).map((s) => s.property),
+    const intel = await enrichPropertyIntel(
+      buildPropertyIntel(
+        first.property,
+        await searchNearbyProperties(first.property, 4),
+      ),
     );
     const termSheet = calculateTermSheet({
       purchasePrice: intel.arv || intel.marketValue || 300000,
