@@ -140,4 +140,22 @@ Set all env vars in Vercel project settings. Run Supabase migration on deploy vi
 supabase db push --db-url "$SUPABASE_DB_URL"
 ```
 
+### GitHub Actions secret: `SUPABASE_DB_URL`
+
+GitHub-hosted runners do **not** have reliable IPv6. The direct database host (`db.<project-ref>.supabase.co:5432`) resolves to IPv6 and fails in CI with `network is unreachable`.
+
+Use the **Session pooler** connection string from Supabase Dashboard → **Project Settings → Database → Connection string → Session mode**:
+
+```
+postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+- Project ref for this repo: `axtzwpoosurrtmhidbsm` (also in `supabase/config.toml`)
+- Replace `<password>` with the database password (URL-encode special characters)
+- Replace `<region>` with your pooler region (e.g. `us-east-1`)
+
+Add this full URI as the `SUPABASE_DB_URL` repository secret. The workflow rejects direct `db.*.supabase.co:5432` URLs to catch misconfiguration early.
+
+For local `supabase db push`, either the session pooler URI or direct connection works on most developer machines.
+
 Migrations include: `profiles.role`, `applications`, `knowledge_documents`, `logic_documents`, `loan_officers`, `admin_settings` (with `state_eligibility`), RLS policies.

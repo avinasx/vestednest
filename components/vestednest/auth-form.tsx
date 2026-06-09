@@ -47,6 +47,14 @@ export function AuthForm({ redirectTo = "/apply" }: { redirectTo?: string }) {
         setLoading(false);
         router.replace(next);
         router.refresh();
+      } else if (event.data === "vn-auth-denied") {
+        stopPolling();
+        popupRef.current?.close();
+        popupRef.current = null;
+        setLoading(false);
+        setError(
+          "Access denied. Admin access requires a superadmin account.",
+        );
       } else if (event.data === "vn-auth-error") {
         stopPolling();
         popupRef.current?.close();
@@ -78,7 +86,7 @@ export function AuthForm({ redirectTo = "/apply" }: { redirectTo?: string }) {
         skipBrowserRedirect: true,
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
           "/auth/popup-done",
-        )}`,
+        )}&dest=${encodeURIComponent(next)}`,
       },
     });
 

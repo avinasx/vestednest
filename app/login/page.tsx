@@ -28,6 +28,11 @@ export default async function LoginPage({
             Sign-in failed. Please try again.
           </p>
         ) : null}
+        {error === "denied" ? (
+          <p className="mt-3 text-sm text-red-600">
+            Access denied. Admin access requires a superadmin account.
+          </p>
+        ) : null}
         <div className="mt-8">
           <AuthForm redirectTo={redirectTo} />
         </div>

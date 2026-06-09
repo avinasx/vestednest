@@ -17,9 +17,14 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     env:
-      # Single required secret: the full Postgres connection string.
-      #   SUPABASE_DB_URL -> Project > Settings > Database > Connection string
-      #   (includes host + password; use the direct or session-pooler URI)
+      # GitHub Actions runners lack IPv6; the direct db.<ref>.supabase.co:5432 URI
+      # often fails with "network is unreachable". Use the **Session pooler** URI
+      # (IPv4) from Dashboard → Database → Connection string → Session mode.
+      #
+      # Format:
+      #   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      #
+      # Do NOT use the direct host (db.<ref>.supabase.co:5432) in CI.
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +32,14 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+
+      - name: Validate database URL (IPv4 pooler)
+        run: |
+          if echo "$SUPABASE_DB_URL" | grep -qE 'db\.[a-z0-9]+\.supabase\.co:5432'; then
+            echo "::error::SUPABASE_DB_URL uses the direct db.*.supabase.co:5432 host, which requires IPv6 and fails on GitHub Actions."
+            echo "Use the Session pooler URI instead: postgres.<ref>@aws-0-<region>.pooler.supabase.com:5432"
+            exit 1
+          fi
 
       - name: Push database migrations
         run: supabase db push --db-url "$SUPABASE_DB_URL"
