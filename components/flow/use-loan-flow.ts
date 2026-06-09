@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { calculateTermSheet } from "@/lib/dscr";
-import type { PublicAddressSuggestion } from "@/lib/address-resolve";
+import { ADDRESS_KIND } from "@/lib/chat-interactions";
+import type { SelectableOption } from "@/lib/chat-interactions/types";
 import type { ChatMessage, CloseTrackerData, DealState } from "./types";
 import { getSessionId } from "./utils";
 
@@ -195,17 +196,22 @@ export function useLoanFlow() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Chat failed");
 
+        const needsSelection =
+          data.interaction?.status === "needs_selection" ||
+          Boolean(data.addressSuggestions?.length);
+
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
             content: data.message,
             actions: data.actions,
+            interaction: data.interaction ?? undefined,
             addressSuggestions: data.addressSuggestions ?? undefined,
           },
         ]);
 
-        if (data.property && !data.addressSuggestions?.length) {
+        if (data.property && !needsSelection) {
           applyProperty(data.property);
         }
       } catch (err) {
@@ -226,41 +232,60 @@ export function useLoanFlow() {
     [applyProperty, chatLoading, messages, scrollChat],
   );
 
-  const selectAddressSuggestion = useCallback(
-    async (suggestion: PublicAddressSuggestion) => {
+  const onSelectInteractionOption = useCallback(
+    async (kind: string, option: SelectableOption) => {
       if (chatLoading) return;
 
-      setMessages((m) => [...m, { role: "user", content: suggestion.label }]);
+      setMessages((m) => [...m, { role: "user", content: option.label }]);
       setChatLoading(true);
       scrollChat();
 
       try {
-        const res = await fetch(
-          `/api/property?address=${encodeURIComponent(suggestion.label)}&state=${suggestion.state}`,
-        );
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: getSessionId(),
+            interactionKind: kind,
+            optionId: option.id,
+            optionMeta: option.meta,
+          }),
+        });
         const data = await res.json();
-        if (!res.ok) {
-          throw new Error(
-            data.error ??
-              "We couldn't find a property at that address. Try another match or add city and state.",
-          );
-        }
+        if (!res.ok) throw new Error(data.error ?? data.message ?? "Request failed");
 
-        applyProperty(data);
-        const rent = data.intel?.estimatedRent ?? 0;
-        const dscr = data.termSheet?.dscr ?? "—";
-        const rate = data.termSheet?.rate?.toFixed(2) ?? "—";
+        const needsSelection = data.interaction?.status === "needs_selection";
+
+        if (kind === ADDRESS_KIND && data.property && !needsSelection) {
+          applyProperty(data.property);
+          const rent = data.property.intel?.estimatedRent ?? 0;
+          const dscr = data.property.termSheet?.dscr ?? "—";
+          const rate = data.property.termSheet?.rate?.toFixed(2) ?? "—";
+
+          setMessages((m) => [
+            ...m,
+            {
+              role: "assistant",
+              content: `Got it — ${data.property.formattedAddress}.\n\n✓ Estimated rent: $${Number(rent).toLocaleString()}/mo\n✓ DSCR at 25% down: ${dscr}x\n✓ Rate: ${rate}% · 30yr Fixed\n\nReady to see the full interactive term sheet?`,
+              actions: [
+                "Yes — open term sheet",
+                "Adjust loan structure",
+                "Download PDF now",
+              ],
+              interaction: data.interaction,
+            },
+          ]);
+          return;
+        }
 
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
-            content: `Got it — ${data.formattedAddress}.\n\n✓ Estimated rent: $${Number(rent).toLocaleString()}/mo\n✓ DSCR at 25% down: ${dscr}x\n✓ Rate: ${rate}% · 30yr Fixed\n\nReady to see the full interactive term sheet?`,
-            actions: [
-              "Yes — open term sheet",
-              "Adjust loan structure",
-              "Download PDF now",
-            ],
+            content: data.message,
+            actions: data.actions,
+            interaction: data.interaction,
+            addressSuggestions: data.addressSuggestions,
           },
         ]);
       } catch (err) {
@@ -271,7 +296,7 @@ export function useLoanFlow() {
             content:
               err instanceof Error
                 ? err.message
-                : "Property lookup failed. Try another address or add city and state.",
+                : "Something went wrong. Try again.",
             actions: ["Get a DSCR quote"],
           },
         ]);
@@ -502,7 +527,7 @@ export function useLoanFlow() {
     dscrPct,
     addressLabel,
     sendChat,
-    selectAddressSuggestion,
+    onSelectInteractionOption,
     handleAction,
     startFromHero,
     resetFlow,

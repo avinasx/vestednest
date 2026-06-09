@@ -6,8 +6,10 @@ import type {
   InvestmentHorizon,
   LoanStrategy,
 } from "@/types/database";
+import type { ChatInteraction } from "@/lib/chat-interactions/types";
 import { useState } from "react";
 import type { AddressSuggestion } from "@/lib/realie";
+import { InteractionPicker } from "@/components/flow/interaction-picker";
 import { AddressAutocomplete } from "./address-autocomplete";
 import { PendingBadge } from "./pending-badge";
 import { PropertySummary } from "./property-summary";
@@ -56,6 +58,9 @@ export function LoanInquiryForm() {
   const [borrowerIdx, setBorrowerIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingInteraction, setPendingInteraction] = useState<
+    Omit<ChatInteraction, "source"> | null
+  >(null);
   const [result, setResult] = useState<{
     property: Record<string, unknown> | null;
     realieError: string | null;
@@ -76,6 +81,7 @@ export function LoanInquiryForm() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setPendingInteraction(null);
 
     const submitAddress =
       selectedSuggestion?.label ||
@@ -116,10 +122,22 @@ export function LoanInquiryForm() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Something went wrong");
+      if (data.status === "needs_selection" && data.interaction) {
+        setPendingInteraction(data.interaction);
+        setError(null);
         return;
       }
+
+      if (!res.ok) {
+        setError(data.message ?? data.error ?? "Something went wrong");
+        return;
+      }
+
+      if (data.status === "blocked") {
+        setError(data.message ?? "This property is not eligible for funding.");
+        return;
+      }
+
       setResult({
         property: data.property ?? null,
         realieError: data.realieError ?? null,
@@ -203,6 +221,57 @@ export function LoanInquiryForm() {
           onSelect={setBorrowerIdx}
           pending
         />
+
+        {pendingInteraction ? (
+          <div className="rounded-lg border border-black/10 bg-[#fafafa] px-4 py-3">
+            <p className="mb-2 text-sm text-black/80">{pendingInteraction.message}</p>
+            <InteractionPicker
+              interaction={pendingInteraction}
+              variant="light"
+              disabled={loading}
+              onSelect={async (kind, option) => {
+                setLoading(true);
+                setError(null);
+                try {
+                  const res = await fetch("/api/inquiries", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      loanStrategy: tabs[activeTab].value,
+                      address: option.label,
+                      downPaymentPct: mapDownPayment(downPaymentOptions[downPaymentIdx]),
+                      ficoBand: ficoOptions[ficoIdx],
+                      intendedHorizon: mapHorizon(strategyOptions[strategyIdx]),
+                      borrowerType: borrowerOptions[borrowerIdx].value,
+                      interactionKind: kind,
+                      optionId: option.id,
+                      optionMeta: option.meta,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (data.status === "needs_selection" && data.interaction) {
+                    setPendingInteraction(data.interaction);
+                    return;
+                  }
+                  if (!res.ok || data.status === "blocked") {
+                    setError(data.message ?? data.error ?? "Something went wrong");
+                    setPendingInteraction(null);
+                    return;
+                  }
+                  setPendingInteraction(null);
+                  setResult({
+                    property: data.property ?? null,
+                    realieError: data.realieError ?? null,
+                  });
+                } catch {
+                  setError("Network error. Please try again.");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
+          </div>
+        ) : null}
 
         {error ? (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">

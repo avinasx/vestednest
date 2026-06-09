@@ -2,10 +2,15 @@ import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
+import {
+  interactionToAddressSuggestions,
+  toClientInteraction,
+  type ChatInteraction,
+} from "@/lib/chat-interactions";
 import { getMemoryContext, storeConversation } from "@/lib/supermemory";
 import {
   clearLastPropertyLookup,
-  getLastAddressSuggestions,
+  getLastInteraction,
   getLastPropertyLookup,
   nestTools,
 } from "./tools";
@@ -102,11 +107,27 @@ function cleanContent(content: string): string {
   return content.replace(/\n?ACTIONS:\s*\[[^\]]+\]\s*$/i, "").trim();
 }
 
+function messageFromInteraction(interaction: ChatInteraction | null): string | null {
+  if (!interaction) return null;
+  if (interaction.status === "needs_selection") return interaction.message;
+  if (
+    interaction.status === "not_found" ||
+    interaction.status === "invalid_input" ||
+    interaction.status === "error" ||
+    interaction.status === "blocked"
+  ) {
+    return interaction.message;
+  }
+  return null;
+}
+
 export type AgentResponse = {
   message: string;
   actions: string[];
+  interaction: Omit<ChatInteraction, "source"> | null;
   propertyLookup: ReturnType<typeof getLastPropertyLookup>;
-  addressSuggestions: ReturnType<typeof getLastAddressSuggestions>;
+  /** @deprecated Mapped from interaction — use interaction instead */
+  addressSuggestions: ReturnType<typeof interactionToAddressSuggestions>;
 };
 
 export async function runNestAgent(
@@ -136,31 +157,28 @@ export async function runNestAgent(
         ? lastMsg.content
         : JSON.stringify(lastMsg.content);
 
+    const interaction = getLastInteraction();
     const propertyLookup = getLastPropertyLookup();
-    const addressSuggestions = getLastAddressSuggestions();
-    let message = cleanContent(raw);
+    const interactionMessage = messageFromInteraction(interaction);
+    let message = interactionMessage ?? cleanContent(raw);
     const actions = parseActions(raw);
-
-    if (addressSuggestions?.length && !propertyLookup) {
-      message =
-        addressSuggestions.length === 1
-          ? "I found one possible match — tap it to confirm this is the right property."
-          : `I found ${addressSuggestions.length} possible matches. Which property did you mean?`;
-    }
 
     await storeConversation(sessionId, userMessage, message);
 
+    const clientInteraction = toClientInteraction(interaction);
+
     return {
       message,
-      actions: addressSuggestions?.length
+      actions: clientInteraction?.status === "needs_selection"
         ? []
         : actions.length
           ? actions
           : propertyLookup
             ? ["Yes — open term sheet", "Adjust loan structure", "Download PDF now"]
             : ["Get a DSCR quote", "Refi out of bridge", "Check my DSCR"],
+      interaction: clientInteraction,
       propertyLookup,
-      addressSuggestions,
+      addressSuggestions: interactionToAddressSuggestions(interaction),
     };
   } catch (err) {
     const { runFallbackAgent } = await import("./fallback");

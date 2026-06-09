@@ -28,6 +28,7 @@ export type AddressResolveResult =
       message: string;
     }
   | { status: "not_found"; message: string }
+  | { status: "invalid"; message: string }
   | { status: "error"; message: string };
 
 export function toPublicSuggestion(s: AddressSuggestion): PublicAddressSuggestion {
@@ -99,14 +100,14 @@ export async function resolveAddressInput(
   const trimmed = address.trim();
   if (trimmed.length < 2) {
     return {
-      status: "not_found",
+      status: "invalid",
       message: "That doesn't look like a valid US address yet.",
     };
   }
 
   if (looksLikeGibberish(trimmed)) {
     return {
-      status: "not_found",
+      status: "invalid",
       message:
         "We couldn't find an address matching that. Try adding city and state, or pick from the suggestions below.",
     };

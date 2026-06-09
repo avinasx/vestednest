@@ -1,4 +1,5 @@
 import type { PublicAddressSuggestion } from "@/lib/address-resolve";
+import type { ChatInteraction } from "@/lib/chat-interactions/types";
 import type { PropertyIntel } from "@/lib/property-intel";
 import type { TermSheet } from "@/lib/dscr";
 
@@ -6,6 +7,8 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   actions?: string[];
+  interaction?: Omit<ChatInteraction, "source"> | null;
+  /** @deprecated — use interaction.options when kind=address */
   addressSuggestions?: PublicAddressSuggestion[];
 };
 

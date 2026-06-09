@@ -1,101 +1,114 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import {
-  resolveAddressInput,
-  type PublicAddressSuggestion,
-} from "@/lib/address-resolve";
+  ADDRESS_KIND,
+  ELIGIBILITY_KIND,
+  resolveInteraction,
+  resolveInteractionSelection,
+  type ChatInteraction,
+} from "@/lib/chat-interactions";
+import {
+  interactionToAddressSuggestions,
+  propertyFromInteraction,
+} from "@/lib/chat-interactions/compat";
+import type { AddressInteractionData } from "@/lib/chat-interactions/types";
 import { calculateTermSheet, calculateTermSheetAsync } from "@/lib/dscr";
-import { isStateEligible } from "@/lib/eligibility";
 import { searchKnowledgeBase } from "@/lib/knowledge-base";
-import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
 
 export type PropertyLookupResult = {
-  intel: ReturnType<typeof buildPropertyIntel>;
+  intel: AddressInteractionData["intel"];
   formattedAddress: string;
-  termSheetAt25Down: ReturnType<typeof calculateTermSheet>;
+  termSheetAt25Down: AddressInteractionData["termSheet"];
 };
 
-let lastLookup: PropertyLookupResult | null = null;
-let lastAddressSuggestions: PublicAddressSuggestion[] | null = null;
+let lastInteraction: ChatInteraction | null = null;
 
-export function getLastPropertyLookup(): PropertyLookupResult | null {
-  return lastLookup;
+export function getLastInteraction(): ChatInteraction | null {
+  return lastInteraction;
 }
 
-export function getLastAddressSuggestions(): PublicAddressSuggestion[] | null {
-  return lastAddressSuggestions;
+export function getLastPropertyLookup(): PropertyLookupResult | null {
+  const property = propertyFromInteraction(lastInteraction);
+  if (!property) return null;
+  return {
+    intel: property.intel,
+    formattedAddress: property.formattedAddress,
+    termSheetAt25Down: property.termSheet,
+  };
+}
+
+/** @deprecated Use getLastInteraction — kept for transitional imports */
+export function getLastAddressSuggestions() {
+  return interactionToAddressSuggestions(lastInteraction);
 }
 
 export function clearLastPropertyLookup() {
-  lastLookup = null;
-  lastAddressSuggestions = null;
+  lastInteraction = null;
+}
+
+function syncFromInteraction(interaction: ChatInteraction) {
+  lastInteraction = interaction;
 }
 
 export const lookupPropertyTool = tool(
   async ({ address, state }) => {
-    const resolved = await resolveAddressInput(address, state ?? "GA");
+    const interaction = await resolveInteraction(ADDRESS_KIND, {
+      address,
+      state: state ?? "GA",
+    });
+    syncFromInteraction(interaction);
 
-    if (resolved.status === "not_found" || resolved.status === "error") {
-      lastLookup = null;
-      lastAddressSuggestions = null;
-      return JSON.stringify({
-        found: false,
-        error: resolved.message,
-      });
-    }
-
-    if (resolved.status === "suggestions") {
-      lastLookup = null;
-      lastAddressSuggestions = resolved.suggestions;
+    if (interaction.status === "needs_selection") {
       return JSON.stringify({
         found: false,
         needsSelection: true,
-        message: resolved.message,
-        suggestions: resolved.suggestions,
+        message: interaction.message,
+        interaction,
       });
     }
 
-    lastAddressSuggestions = null;
+    if (
+      interaction.status === "not_found" ||
+      interaction.status === "invalid_input" ||
+      interaction.status === "error"
+    ) {
+      return JSON.stringify({
+        found: false,
+        error: interaction.message,
+        interaction,
+      });
+    }
 
-    const intel = await enrichPropertyIntel(
-      buildPropertyIntel(resolved.property, resolved.nearby),
-    );
-    const formattedAddress = formatAddress(intel);
-    const stateCheck = intel.state
-      ? await isStateEligible(intel.state)
-      : null;
-
-    if (stateCheck && !stateCheck.eligible) {
+    if (interaction.status === "blocked") {
+      const data = interaction.data as Partial<AddressInteractionData> & {
+        intel?: AddressInteractionData["intel"];
+        formattedAddress?: string;
+      };
       return JSON.stringify({
         found: true,
-        address: formattedAddress,
-        state: intel.state,
         eligible: false,
-        message: stateCheck.message,
-        propertyType: intel.propertyType,
-        marketValue: intel.marketValue,
-        estimatedRent: intel.estimatedRent,
+        address: data.formattedAddress,
+        state: data.intel?.state,
+        message: interaction.message,
+        interaction,
       });
     }
 
-    const termSheet = await calculateTermSheetAsync({
-      purchasePrice: intel.arv || intel.marketValue || 300000,
-      downPaymentPct: 25,
-      monthlyRent: intel.estimatedRent,
-      annualTax: intel.annualTax ?? 3000,
-      purpose: "purchase",
-      term: "30yr",
-      prepay: "3yr",
-      interestOnly: false,
-      state: intel.state,
-    });
+    const property = propertyFromInteraction(interaction);
+    if (!property) {
+      return JSON.stringify({
+        found: false,
+        error: interaction.message,
+        interaction,
+      });
+    }
 
-    lastLookup = { intel, formattedAddress, termSheetAt25Down: termSheet };
+    const { intel, formattedAddress, termSheet } = property;
 
     return JSON.stringify({
       found: true,
-      address: formattedAddress,
       eligible: true,
+      address: formattedAddress,
       propertyType: intel.propertyType,
       beds: intel.beds,
       baths: intel.baths,
@@ -107,6 +120,7 @@ export const lookupPropertyTool = tool(
       rateAt25Down: termSheet.rate,
       monthlyPitia: termSheet.monthlyPitia,
       state: intel.state,
+      interaction,
     });
   },
   {
@@ -184,15 +198,27 @@ export const searchKnowledgeBaseTool = tool(
 
 export const checkStateEligibilityTool = tool(
   async ({ state, borrowerType }) => {
-    const result = await isStateEligible(state, borrowerType);
+    const interaction = await resolveInteraction(ELIGIBILITY_KIND, {
+      state,
+      borrowerType,
+    });
+    syncFromInteraction(interaction);
+
+    const data = interaction.data as {
+      state?: string;
+      eligible?: boolean;
+      requiresAttestation?: boolean;
+      requiresLlc?: boolean;
+    } | undefined;
+
     return JSON.stringify({
-      state: result.state,
-      eligible: result.eligible,
-      status: result.status,
-      requiresAttestation: result.requiresAttestation,
-      requiresLlc: result.requiresLlc,
-      fundedStateCount: result.fundedStates.length,
-      message: result.message,
+      state: data?.state ?? state,
+      eligible: data?.eligible ?? interaction.status === "success",
+      status: interaction.status,
+      message: interaction.message,
+      requiresAttestation: data?.requiresAttestation,
+      requiresLlc: data?.requiresLlc,
+      interaction,
     });
   },
   {
@@ -208,6 +234,17 @@ export const checkStateEligibilityTool = tool(
     }),
   },
 );
+
+/** Resolve a prior needs_selection interaction (e.g. address pick). */
+export async function resolveToolSelection(
+  kind: string,
+  optionId: string,
+  meta?: Record<string, unknown>,
+): Promise<ChatInteraction> {
+  const interaction = await resolveInteractionSelection(kind, optionId, meta);
+  syncFromInteraction(interaction);
+  return interaction;
+}
 
 export const nestTools = [
   lookupPropertyTool,

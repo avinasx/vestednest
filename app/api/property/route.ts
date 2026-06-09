@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { parseUsAddress, parsedFromSuggestion } from "@/lib/address";
-import { calculateTermSheetAsync } from "@/lib/dscr";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
-import { ensureServerSettings } from "@/lib/settings";
 import {
-  lookupProperty,
-  searchAddressSuggestions,
-  searchNearbyProperties,
-} from "@/lib/realie";
+  ADDRESS_KIND,
+  propertyFromInteraction,
+  resolveInteraction,
+  resolveInteractionSelection,
+  toClientInteraction,
+} from "@/lib/chat-interactions";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { ensureServerSettings } from "@/lib/settings";
 
 export async function GET(request: Request) {
   const limited = checkRateLimit(request, "/api/property", 30);
@@ -18,82 +17,121 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address") ?? "";
-  const state = searchParams.get("state") ?? "";
+  const state = searchParams.get("state") ?? "GA";
+  const optionId = searchParams.get("optionId");
+  const optionMetaRaw = searchParams.get("optionMeta");
 
-  if (!address.trim()) {
-    return NextResponse.json({ error: "address is required" }, { status: 400 });
+  if (!address.trim() && !optionId) {
+    return NextResponse.json(
+      { status: "not_found", error: "address is required" },
+      { status: 400 },
+    );
   }
 
   try {
-    const parsed = parseUsAddress(address);
-    if (parsed) {
-      const result = await lookupProperty(parsed);
-      if (result.property) {
-        const nearby = await searchNearbyProperties(result.property, 4);
-        const intel = await enrichPropertyIntel(
-          buildPropertyIntel(result.property, nearby),
-        );
-        const termSheet = await calculateTermSheetAsync({
-          purchasePrice: intel.arv || intel.marketValue || 300000,
-          downPaymentPct: 25,
-          monthlyRent: intel.estimatedRent,
-          annualTax: intel.annualTax ?? 3000,
-          purpose: "purchase",
-          term: "30yr",
-          prepay: "3yr",
-          interestOnly: false,
-          state: intel.state,
-        });
-        return NextResponse.json({
-          intel,
-          formattedAddress: formatAddress(intel),
-          termSheet,
-          source: result.source,
-        });
+    let interaction;
+    if (optionId) {
+      let meta: Record<string, unknown> | undefined;
+      if (optionMetaRaw) {
+        try {
+          meta = JSON.parse(optionMetaRaw) as Record<string, unknown>;
+        } catch {
+          meta = undefined;
+        }
       }
+      interaction = await resolveInteractionSelection(
+        ADDRESS_KIND,
+        optionId,
+        meta,
+      );
+    } else {
+      interaction = await resolveInteraction(ADDRESS_KIND, {
+        address,
+        state,
+      });
     }
 
-    if (!state || state.length !== 2) {
+    const clientInteraction = toClientInteraction(interaction);
+
+    if (interaction.status === "needs_selection") {
+      return NextResponse.json({
+        status: "needs_selection",
+        message: interaction.message,
+        interaction: clientInteraction,
+        addressSuggestions: interaction.options?.map((o) => ({
+          id: o.id,
+          label: o.label,
+          streetAddress: o.meta?.streetAddress ?? o.label,
+          city: o.meta?.city ?? null,
+          state: o.meta?.state ?? state,
+          zip: o.meta?.zip ?? null,
+        })),
+      });
+    }
+
+    if (
+      interaction.status === "not_found" ||
+      interaction.status === "invalid_input"
+    ) {
       return NextResponse.json(
-        { error: "Could not parse address — include city and state (e.g. Cascade Rd Atlanta GA)" },
-        { status: 400 },
+        {
+          status: "not_found",
+          message: interaction.message,
+          interaction: clientInteraction,
+        },
+        { status: 404 },
       );
     }
 
-    const search = await searchAddressSuggestions(address, state, 5);
-    const first = search.suggestions[0];
-    if (!first) {
-      return NextResponse.json({ error: "Property not found" }, { status: 404 });
+    if (interaction.status === "error") {
+      return NextResponse.json(
+        {
+          status: "error",
+          message: interaction.message,
+          interaction: clientInteraction,
+        },
+        { status: 502 },
+      );
     }
 
-    const intel = await enrichPropertyIntel(
-      buildPropertyIntel(
-        first.property,
-        await searchNearbyProperties(first.property, 4),
-      ),
-    );
-    const termSheet = await calculateTermSheetAsync({
-      purchasePrice: intel.arv || intel.marketValue || 300000,
-      downPaymentPct: 25,
-      monthlyRent: intel.estimatedRent,
-      annualTax: intel.annualTax ?? 3000,
-      purpose: "purchase",
-      term: "30yr",
-      prepay: "3yr",
-      interestOnly: false,
-      state: intel.state,
-    });
+    if (interaction.status === "blocked") {
+      return NextResponse.json(
+        {
+          status: "blocked",
+          message: interaction.message,
+          interaction: clientInteraction,
+          data: interaction.data,
+        },
+        { status: 403 },
+      );
+    }
+
+    const property = propertyFromInteraction(interaction);
+    if (!property) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message: "Property data could not be loaded.",
+          interaction: clientInteraction,
+        },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({
-      intel,
-      formattedAddress: formatAddress(intel),
-      termSheet,
-      source: "search",
-      suggestion: parsedFromSuggestion(first),
+      status: "ok",
+      message: interaction.message,
+      interaction: clientInteraction,
+      intel: property.intel,
+      formattedAddress: property.formattedAddress,
+      termSheet: property.termSheet,
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Property lookup failed" },
+      {
+        status: "error",
+        error: err instanceof Error ? err.message : "Property lookup failed",
+      },
       { status: 500 },
     );
   }
