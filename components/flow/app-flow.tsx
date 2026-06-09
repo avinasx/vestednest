@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AddressAutocomplete } from "@/components/vestednest/address-autocomplete";
 import { HomeIcon, MicIcon, SendIcon } from "./icons";
 import { InteractionPicker } from "./interaction-picker";
@@ -41,6 +42,116 @@ const LOAD_STEPS = [
     sub: "Rate, points, PITIA, cash to close, reserve requirement",
   },
 ];
+
+const FLOW_STEPS = [
+  "AI support",
+  "Loading property",
+  "Property intel",
+  "Calculator",
+  "Term sheet",
+  "Pre-qualification",
+  "Close tracker",
+] as const;
+
+type LoanFlow = ReturnType<typeof useLoanFlow>;
+
+function FlowTopNav({
+  onHome,
+  onStart,
+}: {
+  onHome: () => void;
+  onStart: () => void;
+}) {
+  return (
+    <nav className="flow-topnav">
+      <button type="button" className="tlogo" onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer" }}>
+        <span className="dot" />
+        vestednest
+      </button>
+      <div className="tlinks">
+        {["What we do", "DSCR loans", "Resources", "About Us"].map((l) => (
+          <button key={l} type="button" className="tl">
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="row ic gap8">
+        <button type="button" className="sign-in">
+          Sign in
+        </button>
+        <button type="button" className="flow-cta" onClick={onStart}>
+          Get pre-qualified
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+function FlowSidebar({ f }: { f: LoanFlow }) {
+  return (
+    <aside className="flow-sidebar">
+      <div className="flow-sidebar-title">Your loan journey</div>
+      <div className="flow-steps">
+        {FLOW_STEPS.map((label, i) => {
+          const n = i + 1;
+          const active = f.screen === n;
+          const done = f.screen > n;
+          return (
+            <button
+              key={label}
+              type="button"
+              className={`flow-step${active ? " active" : ""}${done ? " done" : ""}`}
+              onClick={() => f.goTo(n)}
+            >
+              <span className="flow-step-num">{done ? "✓" : n}</span>
+              <span className="flow-step-label">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flow-sidebar-ft">
+        <div className="row gap8">
+          <button
+            type="button"
+            className="flow-navbtn"
+            style={{ flex: 1 }}
+            disabled={f.screen <= 1}
+            onClick={() => f.goTo(Math.max(1, f.screen - 1))}
+          >
+            ← Prev
+          </button>
+          <button
+            type="button"
+            className="flow-navbtn"
+            style={{ flex: 1 }}
+            disabled={f.screen >= 7}
+            onClick={() => f.goTo(Math.min(7, f.screen + 1))}
+          >
+            Next →
+          </button>
+        </div>
+        <button type="button" className="flow-navbtn restart" onClick={f.resetFlow}>
+          Restart flow
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function FlowChrome({ f, children }: { f: LoanFlow; children: ReactNode }) {
+  return (
+    <div className="flow-body">
+      <FlowTopNav onHome={() => f.goTo(0)} onStart={() => f.startFromHero()} />
+      <div className="flow-layout">
+        <FlowSidebar f={f} />
+        <div className="flow-main">{children}</div>
+      </div>
+      <button type="button" className="flow-fab" aria-label="Help">
+        ?
+      </button>
+    </div>
+  );
+}
 
 function BorrowerOption({
   label,
@@ -134,33 +245,36 @@ export function AppFlow() {
             </div>
             <div className="tlinks">
               <button type="button" className="tl wh">
+                What we do
+              </button>
+              <button type="button" className="tl wh">
                 DSCR loans
               </button>
               <button type="button" className="tl wh">
-                Bridge → DSCR
+                Resources
               </button>
               <button type="button" className="tl wh">
-                How it works
-              </button>
-              <button type="button" className="tl wh">
-                Term sheet
+                About Us
               </button>
             </div>
             <div className="row ic gap12">
+              <button type="button" className="tl wh" style={{ fontWeight: 600 }}>
+                Sign in
+              </button>
               <button type="button" className="tcta" onClick={() => f.startFromHero()}>
-                Get pre-qualified →
+                Get pre-qualified
               </button>
             </div>
           </nav>
           <div className="heroinner">
             <div className="badge gn mb20">
               <span className="bdot" />
-              Now funding in 38 states
+              America&apos;s first agentic DSCR lender
             </div>
-            <h1 className="h1 mb20">
-              The <em>agentic</em> DSCR lender.
+            <h1 className="h1-flow mb20">
+              Most lenders qualify you.
               <br />
-              <span className="hl">60 seconds</span> to a term sheet.
+              We qualify <em>the property.</em>
             </h1>
             <p
               style={{
@@ -178,19 +292,19 @@ export function AppFlow() {
             <div className="stats mb36" style={{ marginBottom: 36 }}>
               <div className="stat">
                 <div className="stn">$1.4B+</div>
-                <div className="stl">funded since 2019</div>
+                <div className="stl tc">Funded Since 2019</div>
               </div>
               <div className="stat">
                 <div className="stn">4.9/5</div>
-                <div className="stl">operator NPS</div>
+                <div className="stl tc">Operator NPS</div>
               </div>
               <div className="stat">
                 <div className="stn">14 days</div>
-                <div className="stl">median close</div>
+                <div className="stl tc">Median Close</div>
               </div>
               <div className="stat">
                 <div className="stn">38</div>
-                <div className="stl">states funded</div>
+                <div className="stl tc">States Funded</div>
               </div>
             </div>
             <div className="aibar">
@@ -248,7 +362,10 @@ export function AppFlow() {
                 </div>
               </div>
             </div>
-            <p style={{ fontSize: 11, color: "var(--td)", marginTop: 11 }}>
+            <button type="button" className="fly-cta mt16" onClick={() => f.startFromHero()}>
+              Close it on the Fly!
+            </button>
+            <p style={{ fontSize: 11, color: "var(--td)", marginTop: 16 }}>
               Chat sessions help us quote you faster. By using chat, you agree to our
               privacy policy.
             </p>
@@ -266,192 +383,133 @@ export function AppFlow() {
       </div>
 
       {/* S1 Chat */}
-      <div className={`screen dkbg${f.screen === 1 ? " active" : ""}`}>
-        <nav className="tnav dk">
-          <div className="tlogo wh">
-            <span className="dot" />
-            vestednest
-          </div>
-          <div className="row ic gap8">
-            <div className="badge wh">
-              <span className="bdot" />
-              Nest AI · Live
-            </div>
-          </div>
-          <button type="button" className="tl wh" onClick={() => f.goTo(0)}>
-            ← Back to home
-          </button>
-        </nav>
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px 24px 40px",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 660,
-              height: "calc(100vh - 120px)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div className="row ic gap12 mb20">
+      <div className={`screen flowbg${f.screen === 1 ? " active" : ""}`}>
+        <FlowChrome f={f}>
+          <div className="chat-panel">
+            <div className="chat-panel-hd">
               <div
                 style={{
-                  width: 38,
-                  height: 38,
+                  width: 34,
+                  height: 34,
                   borderRadius: "50%",
-                  background: "rgba(46,204,113,.2)",
+                  background: "rgba(255,255,255,.2)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 19,
+                  fontSize: 17,
                 }}
               >
                 🏠
               </div>
-              <div>
-                <div className="serif" style={{ fontSize: 17, fontWeight: 700, color: "var(--w)" }}>
-                  Nest AI
-                </div>
-                <div style={{ fontSize: 12, color: "var(--td)" }}>
+              <div style={{ flex: 1 }}>
+                <div className="serif">Nest AI</div>
+                <div style={{ fontSize: 11, opacity: 0.85 }}>
                   DSCR advisor · No hard pull · Instant quotes
                 </div>
               </div>
-              <div className="badge gn" style={{ marginLeft: "auto" }}>
+              <div className="badge wh" style={{ background: "rgba(255,255,255,.15)", borderColor: "rgba(255,255,255,.25)" }}>
                 <span className="bdot" />
                 Live
               </div>
             </div>
-            <div className="clog" ref={f.logRef}>
-              {f.messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`cm ${m.role === "user" ? "u" : "ai"}`}
-                  style={{ animation: "fadeUp .3s ease both" }}
+            <div className="chat-panel-bd">
+              <div className="flow-clog" ref={f.logRef}>
+                {f.messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={`flow-msg ${m.role === "user" ? "u" : "ai"}`}
+                    style={{ animation: "fadeUp .3s ease both" }}
+                  >
+                    <div className={`cav ${m.role === "user" ? "uv" : "aiv"}`}>
+                      {m.role === "user" ? "U" : "🏠"}
+                    </div>
+                    <div>
+                      <div className="cb">{m.content}</div>
+                      {m.interaction?.status === "needs_selection" &&
+                      m.interaction.options?.length ? (
+                        <InteractionPicker
+                          interaction={m.interaction}
+                          disabled={f.chatLoading}
+                          onSelect={f.onSelectInteractionOption}
+                        />
+                      ) : null}
+                      {m.actions && m.actions.length > 0 && (
+                        <div className="cacts">
+                          {m.actions.map((a) => (
+                            <button
+                              key={a}
+                              type="button"
+                              className="cact"
+                              onClick={() => f.handleAction(a)}
+                            >
+                              {a}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {f.chatLoading && (
+                  <div style={{ fontSize: 12, color: "var(--flow-muted)" }}>Nest AI is thinking…</div>
+                )}
+              </div>
+              <div className="flow-chat-inp">
+                <AddressAutocomplete
+                  compact
+                  value={f.chatInput}
+                  stateCode={f.heroState}
+                  onValueChange={f.setChatInput}
+                  onStateChange={f.setHeroState}
+                  onSelect={(s) => {
+                    f.setChatInput(s.label);
+                    if (s.state) f.setHeroState(s.state);
+                  }}
+                  placeholder="Reply here, or drop a property address…"
+                  inputClassName="cinp"
+                  onSubmit={() => {
+                    const v = f.chatInput;
+                    f.setChatInput("");
+                    f.sendChat(v);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="csendbtn"
+                  onClick={() => {
+                    const v = f.chatInput;
+                    f.setChatInput("");
+                    f.sendChat(v);
+                  }}
                 >
-                  <div className={`cav ${m.role === "user" ? "uv" : "aiv"}`}>
-                    {m.role === "user" ? "U" : "🏠"}
-                  </div>
-                  <div>
-                    <div className="cb">{m.content}</div>
-                    {m.interaction?.status === "needs_selection" &&
-                    m.interaction.options?.length ? (
-                      <InteractionPicker
-                        interaction={m.interaction}
-                        disabled={f.chatLoading}
-                        onSelect={f.onSelectInteractionOption}
-                      />
-                    ) : null}
-                    {m.actions && m.actions.length > 0 && (
-                      <div className="cacts">
-                        {m.actions.map((a) => (
-                          <button
-                            key={a}
-                            type="button"
-                            className="cact"
-                            onClick={() => f.handleAction(a)}
-                          >
-                            {a}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {f.chatLoading && (
-                <div style={{ fontSize: 12, color: "var(--td)" }}>Nest AI is thinking…</div>
-              )}
+                  ↑
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--flow-muted)", textAlign: "center", marginTop: 7 }}>
+                No hard pull · No W2 · Soft credit only when you proceed
+              </p>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 9,
-                alignItems: "center",
-                background: "rgba(255,255,255,.06)",
-                border: "1px solid var(--bih)",
-                borderRadius: 12,
-                padding: "10px 13px",
-                marginTop: 12,
-              }}
-            >
-              <AddressAutocomplete
-                compact
-                value={f.chatInput}
-                stateCode={f.heroState}
-                onValueChange={f.setChatInput}
-                onStateChange={f.setHeroState}
-                onSelect={(s) => {
-                  f.setChatInput(s.label);
-                  if (s.state) f.setHeroState(s.state);
-                }}
-                placeholder="Reply here, or drop a property address…"
-                inputClassName="cinp"
-                onSubmit={() => {
-                  const v = f.chatInput;
-                  f.setChatInput("");
-                  f.sendChat(v);
-                }}
-              />
-              <button
-                type="button"
-                className="csendbtn"
-                onClick={() => {
-                  const v = f.chatInput;
-                  f.setChatInput("");
-                  f.sendChat(v);
-                }}
-              >
-                ↑
-              </button>
-            </div>
-            <p style={{ fontSize: 11, color: "var(--td)", textAlign: "center", marginTop: 7 }}>
-              No hard pull · No W2 · Soft credit only when you proceed
-            </p>
           </div>
-        </div>
+        </FlowChrome>
       </div>
 
       {/* S2 Loading */}
-      <div className={`screen dkbg${f.screen === 2 ? " active" : ""}`}>
-        <nav className="tnav dk">
-          <div className="tlogo wh">
-            <span className="dot" />
-            vestednest
-          </div>
-          <div className="badge wh">
-            <span className="bdot" />
-            Reading property data
-          </div>
-        </nav>
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px 24px 40px",
-          }}
-        >
-          <div style={{ maxWidth: 600, width: "100%" }}>
+      <div className={`screen flowbg${f.screen === 2 ? " active" : ""}`}>
+        <FlowChrome f={f}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
+          <div className="flow-loading-card">
             <div className="badge gn mb16">
               <span className="bdot" />
               Realie API · Live
             </div>
-            <h2 className="h2 wh mb8">
+            <h2 className="h2 dk mb8">
               {f.addressLabel || "Looking up property…"}
             </h2>
-            <p style={{ fontSize: 14, color: "var(--td)", marginBottom: 36 }}>
+            <p style={{ fontSize: 14, color: "var(--flow-muted)", marginBottom: 36 }}>
               Pulling parcel data, rent comps, and running your DSCR — takes about 3
               seconds.
             </p>
-            <div style={{ borderLeft: "2px solid rgba(255,255,255,.1)", paddingLeft: 26 }}>
+            <div style={{ borderLeft: "2px solid var(--flow-border)", paddingLeft: 26 }}>
               {LOAD_STEPS.map((step, i) => (
                 <div
                   key={step.title}
@@ -508,30 +566,28 @@ export function AppFlow() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </FlowChrome>
       </div>
 
       {/* S3 Property Intel */}
       {intel && (
-        <div className={`screen ltbg${f.screen === 3 ? " active" : ""}`}>
-          <nav className="tnav lt">
-            <div className="tlogo dk">
-              <span className="dot" />
-              vestednest
-            </div>
-            <div className="row ic gap8">
-              <div className="badge gn">
-                <span className="bdot" />
-                Property intelligence
+        <div className={`screen flowbg${f.screen === 3 ? " active" : ""}`}>
+          <FlowChrome f={f}>
+          <div className="flow-content-scroll">
+            <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
+              <div className="row jb ic mb16">
+                <div className="row ic gap8">
+                  <div className="badge gn">
+                    <span className="bdot" />
+                    Property intelligence
+                  </div>
+                  <span style={{ fontSize: 12, color: "var(--flow-muted)" }}>{f.deal?.formattedAddress}</span>
+                </div>
+                <button type="button" className="btn g sm" onClick={() => f.goTo(4)}>
+                  Structure loan →
+                </button>
               </div>
-              <span style={{ fontSize: 12, color: "var(--dt)" }}>{f.deal?.formattedAddress}</span>
-            </div>
-            <button type="button" className="btn g sm" onClick={() => f.goTo(4)}>
-              Structure loan →
-            </button>
-          </nav>
-          <div style={{ overflowY: "auto", flex: 1, paddingBottom: 60 }}>
-            <div className="pgsm" style={{ paddingTop: 36 }}>
               <div className="lgsec muted mb12">STEP 3 OF 8 · PROPERTY INTELLIGENCE</div>
               <h2 className="h2 dk mb8">We know your deal.</h2>
               <p
@@ -792,23 +848,21 @@ export function AppFlow() {
               </div>
             </div>
           </div>
+          </FlowChrome>
         </div>
       )}
 
       {/* S4 Calculator */}
       {intel && ts && (
-        <div className={`screen ltbg${f.screen === 4 ? " active" : ""}`}>
-          <nav className="tnav lt">
-            <div className="tlogo dk">
-              <span className="dot" />
-              vestednest
-            </div>
-            <span style={{ fontSize: 12, color: "var(--dt)" }}>{shortAddr}</span>
+        <div className={`screen flowbg${f.screen === 4 ? " active" : ""}`}>
+          <FlowChrome f={f}>
+          <div className="row jb ic mb12">
+            <span style={{ fontSize: 12, color: "var(--flow-muted)" }}>{shortAddr}</span>
             <button type="button" className="btn g sm" onClick={() => { f.downloadPdf(); f.goTo(5); }}>
               Download term sheet →
             </button>
-          </nav>
-          <div className="csplit" style={{ flex: 1, overflow: "hidden" }}>
+          </div>
+          <div className="csplit" style={{ flex: 1, overflow: "hidden", borderRadius: 16, border: "1px solid var(--flow-border)" }}>
             <div className="cleft">
               <div className="lgsec muted mb8">STEP 4 OF 8</div>
               <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: "var(--dk)", marginBottom: 3 }}>
@@ -995,27 +1049,25 @@ export function AppFlow() {
               </p>
             </div>
           </div>
+          </FlowChrome>
         </div>
       )}
 
       {/* S5 Term Sheet */}
       {intel && ts && (
-        <div className={`screen ltbg${f.screen === 5 ? " active" : ""}`}>
-          <nav className="tnav lt">
-            <div className="tlogo dk">
-              <span className="dot" />
-              vestednest
-            </div>
-            <div className="badge gn">
-              <span className="bdot" />
-              Term sheet ready · No email gate
-            </div>
-            <button type="button" className="btn g sm" onClick={() => f.goTo(6)}>
-              Get pre-qualified →
-            </button>
-          </nav>
-          <div style={{ overflowY: "auto", flex: 1, paddingBottom: 60 }}>
-            <div className="pgsm" style={{ paddingTop: 36 }}>
+        <div className={`screen flowbg${f.screen === 5 ? " active" : ""}`}>
+          <FlowChrome f={f}>
+          <div className="flow-content-scroll">
+            <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
+              <div className="row jb ic mb16">
+                <div className="badge gn">
+                  <span className="bdot" />
+                  Term sheet ready · No email gate
+                </div>
+                <button type="button" className="btn g sm" onClick={() => f.goTo(6)}>
+                  Get pre-qualified →
+                </button>
+              </div>
               <div className="lgsec muted mb12">STEP 5 OF 8 · TERM SHEET</div>
               <h2 className="h2 dk mb8">Your indicative term sheet.</h2>
               <p style={{ fontSize: 16, color: "var(--dm)", lineHeight: 1.7, marginBottom: 28 }}>
@@ -1148,26 +1200,24 @@ export function AppFlow() {
               </div>
             </div>
           </div>
+          </FlowChrome>
         </div>
       )}
 
       {/* S6 Pre-Qualify */}
-      <div className={`screen ltbg${f.screen === 6 ? " active" : ""}`}>
-        <nav className="tnav lt">
-          <div className="tlogo dk">
-            <span className="dot" />
-            vestednest
-          </div>
-          <div className="badge gn">
-            <span className="bdot" />
-            Pre-qualification · Soft pull only
-          </div>
-          <button type="button" className="btn g sm" onClick={() => f.submitPrequal()} disabled={f.submitting}>
-            {f.submitting ? "Submitting…" : "Submit →"}
-          </button>
-        </nav>
-        <div style={{ overflowY: "auto", flex: 1, paddingBottom: 60 }}>
-          <div className="pgsm" style={{ paddingTop: 36 }}>
+      <div className={`screen flowbg${f.screen === 6 ? " active" : ""}`}>
+        <FlowChrome f={f}>
+        <div className="flow-content-scroll">
+          <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
+            <div className="row jb ic mb16">
+              <div className="badge gn">
+                <span className="bdot" />
+                Pre-qualification · Soft pull only
+              </div>
+              <button type="button" className="btn g sm" onClick={() => f.submitPrequal()} disabled={f.submitting}>
+                {f.submitting ? "Submitting…" : "Submit →"}
+              </button>
+            </div>
             <div className="lgsec muted mb12">STEP 6 OF 8 · PRE-QUALIFICATION</div>
             <h2 className="h2 dk mb8">Submit & lock your deal.</h2>
             <p style={{ fontSize: 16, color: "var(--dm)", lineHeight: 1.7, marginBottom: 28 }}>
@@ -1227,23 +1277,21 @@ export function AppFlow() {
             </div>
           </div>
         </div>
+        </FlowChrome>
       </div>
 
       {/* S7 Close Tracker */}
-      <div className={`screen ltbg${f.screen === 7 ? " active" : ""}`}>
-        <nav className="tnav lt">
-          <div className="tlogo dk">
-            <span className="dot" />
-            vestednest
-          </div>
-          <div className="badge gn">
-            <span className="bdot" />
-            Submitted · Under review
-          </div>
-          <span style={{ fontSize: 12, color: "var(--dt)" }}>Loan #{f.loanId}</span>
-        </nav>
-        <div style={{ overflowY: "auto", flex: 1, paddingBottom: 60 }}>
-          <div className="pgsm" style={{ paddingTop: 36 }}>
+      <div className={`screen flowbg${f.screen === 7 ? " active" : ""}`}>
+        <FlowChrome f={f}>
+        <div className="flow-content-scroll">
+          <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
+            <div className="row jb ic mb16">
+              <div className="badge gn">
+                <span className="bdot" />
+                Submitted · Under review
+              </div>
+              <span style={{ fontSize: 12, color: "var(--flow-muted)" }}>Loan #{f.loanId}</span>
+            </div>
             <div className="lgsec muted mb12">STEP 7 OF 8 · CLOSE TRACKER</div>
             <div className="row jb ic mb8">
               <div>
@@ -1331,6 +1379,7 @@ export function AppFlow() {
             </div>
           </div>
         </div>
+        </FlowChrome>
       </div>
     </>
   );

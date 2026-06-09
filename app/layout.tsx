@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Fraunces, Geist } from "next/font/google";
+import { DM_Sans, Fraunces, Geist, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "./vestednest.css";
 
@@ -21,6 +21,18 @@ const dmSans = DM_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "Vested Nest — The agentic DSCR lender",
   description:
@@ -35,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${fraunces.variable} ${dmSans.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${fraunces.variable} ${dmSans.variable} ${inter.variable} ${plusJakarta.variable} h-full antialiased`}
     >
       <body className="h-full overflow-hidden">{children}</body>
     </html>
