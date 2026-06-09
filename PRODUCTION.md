@@ -19,30 +19,62 @@ Vested Nest is a production DSCR lending application. This document lists what *
 | Realie API key | `REALIE_API_KEY` | Property parcel data, address autocomplete |
 | RentCast API key | `RENTCAST_API_KEY` | Rent comp enrichment (optional but recommended) |
 
+## Document Types (Two Systems)
+
+Vested Nest uses two separate document pipelines. **Never commit raw confidential PDFs to git.**
+
+### Type 1: Logic Documents (underwriting engine)
+
+Drives `lib/dscr.ts`, `lib/eligibility.ts`, and Nest AI `check_state_eligibility`.
+
+| Admin path | `/admin/logic` |
+| Table | `logic_documents` |
+| Storage bucket | `logic-docs` (Supabase, private) |
+
+Contains: underwriting guidelines, program matrices, state licensing, rate sheets (sanitized extracts only).
+
+- Parsed rules sync to `admin_settings.state_eligibility` and `admin_settings.rate_settings`
+- Conflict flags surface when guideline vs rate-sheet values disagree
+- Wholesale lender names are stripped before storage (`lib/sanitize.ts`)
+
+Seed from stakeholder folder:
+
+```bash
+DOCS_DIR=/path/to/vestednest-docs npm run seed:stakeholder-docs
+```
+
+Sanitized rule snapshot: `data/active-logic-rules.json`
+
+### Type 2: Knowledge Base Documents (chat RAG)
+
+Powers Nest AI `search_knowledge_base` via Supermemory vector store.
+
+| Admin path | `/admin/knowledge` |
+| Table | `knowledge_documents` |
+| Storage bucket | `knowledge-docs` (Supabase, private) |
+
+Supports: markdown, PDF extract, docx extract, URL. On add/update/delete/reindex, content is sanitized then synced to Supermemory.
+
+**Lender confidentiality:** Nest AI system prompt forbids surfacing wholesale lender names in consumer-facing output.
+
 ## Required — Knowledge Base
 
 | Item | Env var | Notes |
 |------|---------|-------|
 | Supermemory API key | `SUPERMEMORY_API_KEY` | KB sync + conversation memory. Fallback: Supabase text search. |
 
-**You must also provide content:**
-- DSCR product policies (rates, LTV limits, min DSCR)
-- State eligibility rules
-- Borrower type requirements (LLC, foreign national)
-- FAQ answers for Nest AI
-
-Add via **Admin → Knowledge Base** at `/admin/knowledge`.
+FAQ-style content (product policies, state eligibility explainers) goes in **Knowledge Base** at `/admin/knowledge`.
 
 ## Required — Rate Engine Data
 
-Configure in **Admin → Settings** or seed `admin_settings.rate_settings`:
+Rate parameters are derived from logic documents (rate sheets) and editable at **Admin → Logic Engine** (`/admin/logic`) or **Admin → Settings**:
 
-- Base rate
+- Base rate (from rate sheet, e.g. 6.500% par 30yr fixed)
 - FICO band adjustments
 - Borrower type overlays (LLC, individual, foreign national)
 - Purpose adjustments (purchase, cash-out, refi, bridge)
-- Per-state rate adjustments (if any)
-- Funded states list (2-letter codes)
+- Per-state rate adjustments
+- State eligibility matrix (blocked: ND, SD; attestation: NJ, NY; LLC-only: VA)
 
 ## Required — Legal & Compliance
 
@@ -108,4 +140,4 @@ Set all env vars in Vercel project settings. Run Supabase migration on deploy vi
 supabase db push --db-url "$SUPABASE_DB_URL"
 ```
 
-Migrations include: `profiles.role`, `applications`, `knowledge_documents`, `loan_officers`, `admin_settings`, RLS policies.
+Migrations include: `profiles.role`, `applications`, `knowledge_documents`, `logic_documents`, `loan_officers`, `admin_settings` (with `state_eligibility`), RLS policies.

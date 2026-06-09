@@ -64,6 +64,23 @@ export const lookupPropertyTool = tool(
       buildPropertyIntel(resolved.property, resolved.nearby),
     );
     const formattedAddress = formatAddress(intel);
+    const stateCheck = intel.state
+      ? await isStateEligible(intel.state)
+      : null;
+
+    if (stateCheck && !stateCheck.eligible) {
+      return JSON.stringify({
+        found: true,
+        address: formattedAddress,
+        state: intel.state,
+        eligible: false,
+        message: stateCheck.message,
+        propertyType: intel.propertyType,
+        marketValue: intel.marketValue,
+        estimatedRent: intel.estimatedRent,
+      });
+    }
+
     const termSheet = await calculateTermSheetAsync({
       purchasePrice: intel.arv || intel.marketValue || 300000,
       downPaymentPct: 25,
@@ -81,6 +98,7 @@ export const lookupPropertyTool = tool(
     return JSON.stringify({
       found: true,
       address: formattedAddress,
+      eligible: true,
       propertyType: intel.propertyType,
       beds: intel.beds,
       baths: intel.baths,
@@ -168,22 +186,28 @@ export const searchKnowledgeBaseTool = tool(
 );
 
 export const checkStateEligibilityTool = tool(
-  async ({ state }) => {
-    const result = await isStateEligible(state);
+  async ({ state, borrowerType }) => {
+    const result = await isStateEligible(state, borrowerType);
     return JSON.stringify({
       state: result.state,
       eligible: result.eligible,
+      status: result.status,
+      requiresAttestation: result.requiresAttestation,
+      requiresLlc: result.requiresLlc,
       fundedStateCount: result.fundedStates.length,
-      message: result.eligible
-        ? `${result.state} is a funded state for Vested Nest DSCR loans.`
-        : `${result.state} is not currently funded. Vested Nest funds ${result.fundedStates.length} states.`,
+      message: result.message,
     });
   },
   {
     name: "check_state_eligibility",
-    description: "Check if a US state is eligible for Vested Nest DSCR lending.",
+    description:
+      "Check if a US state is eligible for Vested Nest DSCR lending. Hard-blocks ND and SD. NJ/NY may require broker attestation. VA requires LLC entity vesting.",
     schema: z.object({
       state: z.string().describe("Two-letter US state code, e.g. GA, FL, TX"),
+      borrowerType: z
+        .enum(["llc", "individual", "foreign"])
+        .optional()
+        .describe("Borrower entity type for state-specific rules (e.g. VA LLC-only)"),
     }),
   },
 );

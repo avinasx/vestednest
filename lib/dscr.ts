@@ -1,4 +1,5 @@
-import { createServiceClient } from "@/lib/supabase/service";
+import { getActiveLogicRules } from "@/lib/logic";
+import { DEFAULT_RATE_FROM_SHEET } from "@/lib/logic/defaults";
 
 export type LoanPurpose = "purchase" | "cashout" | "bridge" | "refi";
 export type LoanTerm = "30yr" | "5/1" | "7/1";
@@ -61,30 +62,36 @@ const DEFAULT_RATE_SETTINGS: Required<
     | "purposeAdjustments"
   >
 > = {
-  baseRate: 7.99,
-  originationPts: 1.25,
-  appraisalEst: 650,
-  titleFeeEst: 1840,
-  reserveMonths: 6,
-  ficoBands: [
-    { min: 760, max: 850, adjustment: -0.25 },
-    { min: 740, max: 759, adjustment: -0.125 },
+  baseRate: DEFAULT_RATE_FROM_SHEET.baseRate ?? 6.5,
+  originationPts: DEFAULT_RATE_FROM_SHEET.originationPts ?? 1.0,
+  appraisalEst: DEFAULT_RATE_FROM_SHEET.appraisalEst ?? 650,
+  titleFeeEst: DEFAULT_RATE_FROM_SHEET.titleFeeEst ?? 1840,
+  reserveMonths: DEFAULT_RATE_FROM_SHEET.reserveMonths ?? 3,
+  ficoBands: DEFAULT_RATE_FROM_SHEET.ficoBands ?? [
+    { min: 760, max: 850, adjustment: -0.5 },
+    { min: 740, max: 759, adjustment: -0.375 },
     { min: 700, max: 739, adjustment: 0 },
     { min: 680, max: 699, adjustment: 0.25 },
     { min: 660, max: 679, adjustment: 0.5 },
-    { min: 620, max: 659, adjustment: 0.75 },
+    { min: 620, max: 639, adjustment: 1.0 },
   ],
-  borrowerAdjustments: {
+  borrowerAdjustments: DEFAULT_RATE_FROM_SHEET.borrowerAdjustments ?? {
     llc: 0,
     individual: 0.125,
     foreign: 0.375,
   },
-  purposeAdjustments: {
+  purposeAdjustments: DEFAULT_RATE_FROM_SHEET.purposeAdjustments ?? {
     purchase: 0,
-    cashout: 0.25,
+    cashout: 0.375,
     bridge: 0.125,
     refi: 0.125,
   },
+};
+
+export type DscrQualification = {
+  minDscr: number;
+  qualifies: boolean;
+  nearDscrEligible: boolean;
 };
 
 let cachedRateSettings: RateSettings | null = null;
@@ -93,23 +100,35 @@ let cacheExpiry = 0;
 export async function getRateSettings(): Promise<RateSettings> {
   if (cachedRateSettings && Date.now() < cacheExpiry) return cachedRateSettings;
 
-  const service = createServiceClient();
-  if (!service) return DEFAULT_RATE_SETTINGS;
+  try {
+    const rules = await getActiveLogicRules();
+    const settings = {
+      ...DEFAULT_RATE_SETTINGS,
+      ...rules.rateSettings,
+    };
+    cachedRateSettings = settings;
+    cacheExpiry = Date.now() + 60_000;
+    return settings;
+  } catch {
+    return DEFAULT_RATE_SETTINGS;
+  }
+}
 
-  const { data } = await service
-    .from("admin_settings")
-    .select("rate_settings")
-    .eq("id", 1)
-    .single();
+export async function getMinDscrThreshold(): Promise<number> {
+  const rules = await getActiveLogicRules();
+  return rules.dscr.minQualifyingDscr;
+}
 
-  const settings = {
-    ...DEFAULT_RATE_SETTINGS,
-    ...((data?.rate_settings as RateSettings) ?? {}),
+export function evaluateDscrQualification(
+  dscr: number,
+  minDscr = 1.0,
+  nearMin = 0.75,
+): DscrQualification {
+  return {
+    minDscr,
+    qualifies: dscr >= minDscr,
+    nearDscrEligible: dscr >= nearMin && dscr < minDscr,
   };
-
-  cachedRateSettings = settings;
-  cacheExpiry = Date.now() + 60_000;
-  return settings;
 }
 
 function termAdjustment(term: LoanTerm, prepay: PrepayPenalty, interestOnly: boolean): number {
@@ -143,6 +162,7 @@ function prepayLabel(prepay: PrepayPenalty): string {
 export function calculateTermSheetWithSettings(
   inputs: LoanInputs,
   settings: RateSettings = DEFAULT_RATE_SETTINGS,
+  minDscr = 1.0,
 ): TermSheet {
   const merged = { ...DEFAULT_RATE_SETTINGS, ...settings };
   const loanAmount = Math.round(inputs.purchasePrice * (1 - inputs.downPaymentPct / 100));
@@ -191,7 +211,7 @@ export function calculateTermSheetWithSettings(
     originationFee,
     reserves,
     reservesMonths: reserveMonths,
-    qualifies: dscr >= 1.0,
+    qualifies: dscr >= minDscr,
     termLabel: termLabel(inputs.term),
     prepayLabel: prepayLabel(inputs.prepay),
   };
@@ -204,8 +224,8 @@ export function calculateTermSheet(inputs: LoanInputs): TermSheet {
 
 /** Async calculator that loads admin rate_settings when available. */
 export async function calculateTermSheetAsync(inputs: LoanInputs): Promise<TermSheet> {
-  const settings = await getRateSettings();
-  return calculateTermSheetWithSettings(inputs, settings);
+  const [settings, rules] = await Promise.all([getRateSettings(), getActiveLogicRules()]);
+  return calculateTermSheetWithSettings(inputs, settings, rules.dscr.minQualifyingDscr);
 }
 
 export function estimateMonthlyRent(marketValue: number): number {

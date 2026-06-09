@@ -15,6 +15,7 @@ export type Database = {
           funded_states: string[];
           id: number;
           rate_settings: Json;
+          state_eligibility: Json;
           updated_at: string;
           updated_by: string | null;
         };
@@ -23,6 +24,7 @@ export type Database = {
           funded_states?: string[];
           id?: number;
           rate_settings?: Json;
+          state_eligibility?: Json;
           updated_at?: string;
           updated_by?: string | null;
         };
@@ -31,8 +33,45 @@ export type Database = {
           funded_states?: string[];
           id?: number;
           rate_settings?: Json;
+          state_eligibility?: Json;
           updated_at?: string;
           updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      logic_documents: {
+        Row: {
+          created_at: string;
+          file_path: string | null;
+          id: string;
+          parsed_rules: Json | null;
+          sanitized_content: string | null;
+          source_type: string;
+          title: string;
+          updated_at: string;
+          version: string;
+        };
+        Insert: {
+          created_at?: string;
+          file_path?: string | null;
+          id?: string;
+          parsed_rules?: Json | null;
+          sanitized_content?: string | null;
+          source_type: string;
+          title: string;
+          updated_at?: string;
+          version?: string;
+        };
+        Update: {
+          created_at?: string;
+          file_path?: string | null;
+          id?: string;
+          parsed_rules?: Json | null;
+          sanitized_content?: string | null;
+          source_type?: string;
+          title?: string;
+          updated_at?: string;
+          version?: string;
         };
         Relationships: [];
       };

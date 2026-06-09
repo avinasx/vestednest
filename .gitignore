@@ -22,6 +22,10 @@
 
 # misc
 .DS_Store
+
+# confidential doc extracts (use data/active-logic-rules.json for sanitized snapshot)
+/data/extracted/
+scripts/extract-docs-temp.mjs
 *.pem
 
 # debug

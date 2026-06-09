@@ -1,0 +1,25 @@
+{
+  "dscr": {
+    "minQualifyingDscr": 1.0,
+    "nearDscrMin": 0.75,
+    "superDscrMin": 1.15,
+    "ltvReductionBelowMinDscr": 5
+  },
+  "ltv": {
+    "maxLtvPurchase740Fico": 85,
+    "maxLtvCashOut740Fico": 75,
+    "maxLtvForeignNational": 75,
+    "maxLtvDscrBelow1": 75
+  },
+  "reserves": {
+    "monthsUnder1M": { "purchase": 0, "cashout": 3 },
+    "monthsOver1M": { "purchase": 3, "cashout": 6 },
+    "superProgramMonths": 6
+  },
+  "minFico": 620,
+  "minLoanAmount": 100000,
+  "maxLoanAmount": 3500000,
+  "blockedStates": ["ND", "SD"],
+  "attestationStates": ["NJ", "NY"],
+  "llcOnlyStates": ["VA"]
+}

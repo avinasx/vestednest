@@ -47,6 +47,11 @@ export default async function AdminDashboardPage() {
           <h2 className="text-lg font-semibold text-black">Quick actions</h2>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
+              <Link href="/admin/logic" className="text-vn-green hover:underline">
+                Review underwriting logic & state matrix →
+              </Link>
+            </li>
+            <li>
               <Link href="/admin/knowledge" className="text-vn-green hover:underline">
                 Add knowledge base document →
               </Link>

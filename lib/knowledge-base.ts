@@ -1,3 +1,4 @@
+import { sanitizeContent, sanitizeTitle } from "@/lib/sanitize";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   deleteKnowledgeMemory,
@@ -8,7 +9,7 @@ import {
 export type KnowledgeDocument = {
   id: string;
   title: string;
-  source_type: "markdown" | "pdf" | "url";
+  source_type: "markdown" | "pdf" | "url" | "docx";
   content: string | null;
   file_path: string | null;
   source_url: string | null;
@@ -45,7 +46,7 @@ export async function getKnowledgeDocument(id: string): Promise<KnowledgeDocumen
 
 export async function createKnowledgeDocument(input: {
   title: string;
-  source_type: "markdown" | "pdf" | "url";
+  source_type: "markdown" | "pdf" | "url" | "docx";
   content: string;
   file_path?: string | null;
   source_url?: string | null;
@@ -54,12 +55,14 @@ export async function createKnowledgeDocument(input: {
   const service = createServiceClient();
   if (!service) return null;
 
+  const sanitized = sanitizeContent(input.content);
+
   const { data, error } = await service
     .from("knowledge_documents")
     .insert({
-      title: input.title,
+      title: sanitizeTitle(input.title),
       source_type: input.source_type,
-      content: input.content,
+      content: sanitized,
       file_path: input.file_path ?? null,
       source_url: input.source_url ?? null,
       created_by: input.created_by,
@@ -97,9 +100,13 @@ export async function updateKnowledgeDocument(
   const existing = await getKnowledgeDocument(id);
   if (!existing) return null;
 
+  const patch = { ...input };
+  if (patch.title) patch.title = sanitizeTitle(patch.title);
+  if (patch.content) patch.content = sanitizeContent(patch.content);
+
   const { data, error } = await service
     .from("knowledge_documents")
-    .update(input)
+    .update(patch)
     .eq("id", id)
     .select()
     .single();
@@ -135,6 +142,26 @@ export async function deleteKnowledgeDocument(id: string): Promise<boolean> {
 
   const { error } = await service.from("knowledge_documents").delete().eq("id", id);
   return !error;
+}
+
+export async function reindexKnowledgeDocument(id: string): Promise<KnowledgeDocument | null> {
+  const doc = await getKnowledgeDocument(id);
+  if (!doc) return null;
+
+  const service = createServiceClient();
+  if (!service) return null;
+
+  const sanitized = sanitizeContent(doc.content ?? "");
+  if (doc.supermemory_id) {
+    await deleteKnowledgeMemory(doc.supermemory_id);
+  }
+  const memoryId = await syncKnowledgeMemory(doc.id, doc.title, sanitized);
+  await service
+    .from("knowledge_documents")
+    .update({ content: sanitized, supermemory_id: memoryId })
+    .eq("id", id);
+
+  return { ...doc, content: sanitized, supermemory_id: memoryId };
 }
 
 export async function searchKnowledgeBase(query: string, limit = 5): Promise<string> {

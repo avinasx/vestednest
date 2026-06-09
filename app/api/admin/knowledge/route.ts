@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       title?: string;
-      source_type?: "markdown" | "pdf" | "url";
+      source_type?: "markdown" | "pdf" | "url" | "docx";
       content?: string;
       source_url?: string;
     };

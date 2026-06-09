@@ -45,6 +45,9 @@ export default async function AdminLayout({
               <Link href="/admin" className="text-black/70 hover:text-black">
                 Dashboard
               </Link>
+              <Link href="/admin/logic" className="text-black/70 hover:text-black">
+                Logic Engine
+              </Link>
               <Link href="/admin/knowledge" className="text-black/70 hover:text-black">
                 Knowledge Base
               </Link>

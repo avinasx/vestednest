@@ -3,6 +3,7 @@ import { requireSuperadmin } from "@/lib/auth/admin";
 import type { RateSettings } from "@/lib/dscr";
 import { getIntegrationStatus } from "@/lib/settings";
 import { createServiceClient } from "@/lib/supabase/service";
+import type { Json } from "@/types/database";
 
 export async function GET() {
   const { error } = await requireSuperadmin();
@@ -36,17 +37,34 @@ export async function PATCH(request: Request) {
   const body = (await request.json()) as {
     rate_settings?: RateSettings;
     funded_states?: string[];
+    state_eligibility?: unknown;
     feature_flags?: Record<string, boolean>;
   };
 
+  const updatePayload: {
+    rate_settings?: Json;
+    funded_states?: string[];
+    state_eligibility?: Json;
+    feature_flags?: Json;
+    updated_by: string;
+  } = { updated_by: profile!.id };
+
+  if (body.rate_settings !== undefined) {
+    updatePayload.rate_settings = body.rate_settings as Json;
+  }
+  if (body.funded_states !== undefined) {
+    updatePayload.funded_states = body.funded_states;
+  }
+  if (body.state_eligibility !== undefined) {
+    updatePayload.state_eligibility = body.state_eligibility as Json;
+  }
+  if (body.feature_flags !== undefined) {
+    updatePayload.feature_flags = body.feature_flags as Json;
+  }
+
   const { data, error: updateError } = await service
     .from("admin_settings")
-    .update({
-      rate_settings: body.rate_settings,
-      funded_states: body.funded_states,
-      feature_flags: body.feature_flags,
-      updated_by: profile!.id,
-    })
+    .update(updatePayload)
     .eq("id", 1)
     .select()
     .single();
