@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { calculateTermSheet } from "@/lib/dscr";
+import type { PublicAddressSuggestion } from "@/lib/address-resolve";
 import type { ChatMessage, CloseTrackerData, DealState } from "./types";
 import { getSessionId } from "./utils";
 
@@ -196,10 +197,15 @@ export function useLoanFlow() {
 
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: data.message, actions: data.actions },
+          {
+            role: "assistant",
+            content: data.message,
+            actions: data.actions,
+            addressSuggestions: data.addressSuggestions ?? undefined,
+          },
         ]);
 
-        if (data.property) {
+        if (data.property && !data.addressSuggestions?.length) {
           applyProperty(data.property);
         }
       } catch (err) {
@@ -220,6 +226,63 @@ export function useLoanFlow() {
     [applyProperty, chatLoading, messages, scrollChat],
   );
 
+  const selectAddressSuggestion = useCallback(
+    async (suggestion: PublicAddressSuggestion) => {
+      if (chatLoading) return;
+
+      setMessages((m) => [...m, { role: "user", content: suggestion.label }]);
+      setChatLoading(true);
+      scrollChat();
+
+      try {
+        const res = await fetch(
+          `/api/property?address=${encodeURIComponent(suggestion.label)}&state=${suggestion.state}`,
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(
+            data.error ??
+              "We couldn't find a property at that address. Try another match or add city and state.",
+          );
+        }
+
+        applyProperty(data);
+        const rent = data.intel?.estimatedRent ?? 0;
+        const dscr = data.termSheet?.dscr ?? "—";
+        const rate = data.termSheet?.rate?.toFixed(2) ?? "—";
+
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content: `Got it — ${data.formattedAddress}.\n\n✓ Estimated rent: $${Number(rent).toLocaleString()}/mo\n✓ DSCR at 25% down: ${dscr}x\n✓ Rate: ${rate}% · 30yr Fixed\n\nReady to see the full interactive term sheet?`,
+            actions: [
+              "Yes — open term sheet",
+              "Adjust loan structure",
+              "Download PDF now",
+            ],
+          },
+        ]);
+      } catch (err) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            content:
+              err instanceof Error
+                ? err.message
+                : "Property lookup failed. Try another address or add city and state.",
+            actions: ["Get a DSCR quote"],
+          },
+        ]);
+      } finally {
+        setChatLoading(false);
+        scrollChat();
+      }
+    },
+    [applyProperty, chatLoading, scrollChat],
+  );
+
   const handleAction = useCallback(
     (action: string) => {
       const lower = action.toLowerCase();
@@ -229,12 +292,14 @@ export function useLoanFlow() {
         lower.includes("open")
       ) {
         sendChat(action);
-        setTimeout(() => goTo(2), 1200);
+        if (deal) {
+          setTimeout(() => goTo(2), 1200);
+        }
         return;
       }
       sendChat(action);
     },
-    [goTo, sendChat],
+    [deal, goTo, sendChat],
   );
 
   const startFromHero = useCallback(
@@ -364,26 +429,16 @@ export function useLoanFlow() {
   }, [screen, heroInput, sendChat]);
 
   useEffect(() => {
-    if (screen !== 2 || loadInit.current) return;
+    if (screen !== 2 || loadInit.current || !deal) return;
     loadInit.current = true;
     setLoadStep(-1);
     setLoadDone(false);
-
-    const addr = deal?.formattedAddress ?? heroInput;
-    if (addr && !deal) {
-      fetch(`/api/property?address=${encodeURIComponent(addr)}&state=${heroState}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.intel) applyProperty(data);
-        })
-        .catch(() => {});
-    }
 
     for (let i = 0; i < 5; i++) {
       setTimeout(() => setLoadStep(i), i * 650);
     }
     setTimeout(() => setLoadDone(true), 5 * 650 + 400);
-  }, [screen, deal, heroInput, heroState, applyProperty]);
+  }, [screen, deal]);
 
   useEffect(() => {
     if (screen === 4 && liveTermSheet && deal) {
@@ -447,6 +502,7 @@ export function useLoanFlow() {
     dscrPct,
     addressLabel,
     sendChat,
+    selectAddressSuggestion,
     handleAction,
     startFromHero,
     resetFlow,

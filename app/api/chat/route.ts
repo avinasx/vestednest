@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       message: result.message,
       actions: result.actions,
+      addressSuggestions: result.addressSuggestions ?? null,
       property: result.propertyLookup
         ? {
             intel: result.propertyLookup.intel,

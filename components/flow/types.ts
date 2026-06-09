@@ -1,3 +1,4 @@
+import type { PublicAddressSuggestion } from "@/lib/address-resolve";
 import type { PropertyIntel } from "@/lib/property-intel";
 import type { TermSheet } from "@/lib/dscr";
 
@@ -5,6 +6,7 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   actions?: string[];
+  addressSuggestions?: PublicAddressSuggestion[];
 };
 
 export type DealState = {

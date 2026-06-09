@@ -5,6 +5,7 @@ import { MessagesAnnotation, StateGraph } from "@langchain/langgraph";
 import { getMemoryContext, storeConversation } from "@/lib/supermemory";
 import {
   clearLastPropertyLookup,
+  getLastAddressSuggestions,
   getLastPropertyLookup,
   nestTools,
 } from "./tools";
@@ -105,6 +106,7 @@ export type AgentResponse = {
   message: string;
   actions: string[];
   propertyLookup: ReturnType<typeof getLastPropertyLookup>;
+  addressSuggestions: ReturnType<typeof getLastAddressSuggestions>;
 };
 
 export async function runNestAgent(
@@ -134,20 +136,31 @@ export async function runNestAgent(
         ? lastMsg.content
         : JSON.stringify(lastMsg.content);
 
-    const message = cleanContent(raw);
-    const actions = parseActions(raw);
     const propertyLookup = getLastPropertyLookup();
+    const addressSuggestions = getLastAddressSuggestions();
+    let message = cleanContent(raw);
+    const actions = parseActions(raw);
+
+    if (addressSuggestions?.length && !propertyLookup) {
+      message =
+        addressSuggestions.length === 1
+          ? "I found one possible match — tap it to confirm this is the right property."
+          : `I found ${addressSuggestions.length} possible matches. Which property did you mean?`;
+    }
 
     await storeConversation(sessionId, userMessage, message);
 
     return {
       message,
-      actions: actions.length
-        ? actions
-        : propertyLookup
-          ? ["Yes — open term sheet", "Adjust loan structure", "Download PDF now"]
-          : ["Get a DSCR quote", "Refi out of bridge", "Check my DSCR"],
+      actions: addressSuggestions?.length
+        ? []
+        : actions.length
+          ? actions
+          : propertyLookup
+            ? ["Yes — open term sheet", "Adjust loan structure", "Download PDF now"]
+            : ["Get a DSCR quote", "Refi out of bridge", "Check my DSCR"],
       propertyLookup,
+      addressSuggestions,
     };
   } catch (err) {
     const { runFallbackAgent } = await import("./fallback");

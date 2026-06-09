@@ -1,15 +1,13 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { parseUsAddress } from "@/lib/address";
+import {
+  resolveAddressInput,
+  type PublicAddressSuggestion,
+} from "@/lib/address-resolve";
 import { calculateTermSheet, calculateTermSheetAsync } from "@/lib/dscr";
 import { isStateEligible } from "@/lib/eligibility";
 import { searchKnowledgeBase } from "@/lib/knowledge-base";
 import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
-import {
-  lookupProperty,
-  searchAddressSuggestions,
-  searchNearbyProperties,
-} from "@/lib/realie";
 
 export type PropertyLookupResult = {
   intel: ReturnType<typeof buildPropertyIntel>;
@@ -18,47 +16,46 @@ export type PropertyLookupResult = {
 };
 
 let lastLookup: PropertyLookupResult | null = null;
+let lastAddressSuggestions: PublicAddressSuggestion[] | null = null;
 
 export function getLastPropertyLookup(): PropertyLookupResult | null {
   return lastLookup;
 }
 
-export function clearLastPropertyLookup() {
-  lastLookup = null;
+export function getLastAddressSuggestions(): PublicAddressSuggestion[] | null {
+  return lastAddressSuggestions;
 }
 
-async function resolveProperty(address: string, state?: string) {
-  const parsed = parseUsAddress(address);
-  if (parsed) {
-    const result = await lookupProperty(parsed);
-    if (result.property) {
-      const nearby = await searchNearbyProperties(result.property, 4);
-      return { property: result.property, nearby };
-    }
-  }
-
-  const fallbackState = state ?? parsed?.state ?? "GA";
-  const search = await searchAddressSuggestions(address, fallbackState, 5);
-  const first = search.suggestions[0];
-  if (first) {
-    return {
-      property: first.property,
-      nearby: await searchNearbyProperties(first.property, 4),
-    };
-  }
-
-  return null;
+export function clearLastPropertyLookup() {
+  lastLookup = null;
+  lastAddressSuggestions = null;
 }
 
 export const lookupPropertyTool = tool(
   async ({ address, state }) => {
-    const resolved = await resolveProperty(address, state);
-    if (!resolved) {
+    const resolved = await resolveAddressInput(address, state ?? "GA");
+
+    if (resolved.status === "not_found" || resolved.status === "error") {
+      lastLookup = null;
+      lastAddressSuggestions = null;
       return JSON.stringify({
         found: false,
-        error: "Property not found. Ask for a full US address with city and state.",
+        error: resolved.message,
       });
     }
+
+    if (resolved.status === "suggestions") {
+      lastLookup = null;
+      lastAddressSuggestions = resolved.suggestions;
+      return JSON.stringify({
+        found: false,
+        needsSelection: true,
+        message: resolved.message,
+        suggestions: resolved.suggestions,
+      });
+    }
+
+    lastAddressSuggestions = null;
 
     const intel = await enrichPropertyIntel(
       buildPropertyIntel(resolved.property, resolved.nearby),

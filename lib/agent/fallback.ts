@@ -1,60 +1,17 @@
-import { parseUsAddress } from "@/lib/address";
+import {
+  mightBeAddressQuery,
+  resolveAddressInput,
+} from "@/lib/address-resolve";
 import { calculateTermSheet } from "@/lib/dscr";
 import { buildPropertyIntel, enrichPropertyIntel, formatAddress } from "@/lib/property-intel";
-import {
-  lookupProperty,
-  searchAddressSuggestions,
-  searchNearbyProperties,
-} from "@/lib/realie";
 import type { AgentResponse } from "./nest-agent";
-import { clearLastPropertyLookup, getLastPropertyLookup } from "./tools";
+import { clearLastPropertyLookup } from "./tools";
 
-function looksLikeAddress(message: string): boolean {
-  const ml = message.toLowerCase();
-  return (
-    (/\d{1,5}\s+\w/.test(message) &&
-      /(ave|dr|rd|st|blvd|ln|ct|way|pl|circle)/i.test(message)) ||
-    /\d{5}/.test(message) ||
-    /oak ridge|peachtree|cascade|maple|sylvan/i.test(ml)
-  );
-}
-
-async function tryPropertyLookup(address: string) {
-  clearLastPropertyLookup();
-  const parsed = parseUsAddress(address);
-  if (parsed) {
-    const result = await lookupProperty(parsed);
-    if (result.property) {
-      const nearby = await searchNearbyProperties(result.property, 4);
-      const intel = await enrichPropertyIntel(
-        buildPropertyIntel(result.property, nearby),
-      );
-      const formattedAddress = formatAddress(intel);
-      const termSheet = calculateTermSheet({
-        purchasePrice: intel.arv || intel.marketValue || 300000,
-        downPaymentPct: 25,
-        monthlyRent: intel.estimatedRent,
-        annualTax: intel.annualTax ?? 3000,
-        purpose: "purchase",
-        term: "30yr",
-        prepay: "3yr",
-        interestOnly: false,
-      });
-      return { intel, formattedAddress, termSheetAt25Down: termSheet };
-    }
-  }
-
-  const state = parsed?.state ?? "GA";
-  const search = await searchAddressSuggestions(address, state, 3);
-  const first = search.suggestions[0];
-  if (!first) return null;
-
-  const intel = await enrichPropertyIntel(
-    buildPropertyIntel(
-      first.property,
-      await searchNearbyProperties(first.property, 4),
-    ),
-  );
+async function buildPropertyLookup(
+  property: Record<string, unknown>,
+  nearby: Record<string, unknown>[],
+) {
+  const intel = await enrichPropertyIntel(buildPropertyIntel(property, nearby));
   const formattedAddress = formatAddress(intel);
   const termSheet = calculateTermSheet({
     purchasePrice: intel.arv || intel.marketValue || 300000,
@@ -65,6 +22,7 @@ async function tryPropertyLookup(address: string) {
     term: "30yr",
     prepay: "3yr",
     interestOnly: false,
+    state: intel.state,
   });
   return { intel, formattedAddress, termSheetAt25Down: termSheet };
 }
@@ -74,15 +32,37 @@ export async function runFallbackAgent(
   userMessage: string,
 ): Promise<AgentResponse> {
   const ml = userMessage.toLowerCase();
+  clearLastPropertyLookup();
 
-  if (looksLikeAddress(userMessage)) {
-    const lookup = await tryPropertyLookup(userMessage);
-    if (lookup) {
+  if (mightBeAddressQuery(userMessage)) {
+    const resolved = await resolveAddressInput(userMessage, "GA");
+
+    if (resolved.status === "suggestions") {
+      return {
+        message: resolved.message,
+        actions: [],
+        propertyLookup: null,
+        addressSuggestions: resolved.suggestions,
+      };
+    }
+
+    if (resolved.status === "not_found" || resolved.status === "error") {
+      return {
+        message: resolved.message,
+        actions: ["Try a full address", "Get a DSCR quote"],
+        propertyLookup: null,
+        addressSuggestions: null,
+      };
+    }
+
+    if (resolved.status === "found") {
+      const lookup = await buildPropertyLookup(resolved.property, resolved.nearby);
       const ts = lookup.termSheetAt25Down;
       return {
         message: `On it — pulled property data via Realie.\n\n✓ Property: ${lookup.formattedAddress}\n✓ Estimated rent: $${lookup.intel.estimatedRent.toLocaleString()}/mo\n✓ DSCR at 25% down: ${ts.dscr}x\n✓ Rate: ${ts.rate.toFixed(2)}% · 30yr Fixed\n\nReady to see the full interactive term sheet?`,
         actions: ["Yes — open term sheet", "Adjust loan structure", "Download PDF now"],
         propertyLookup: lookup,
+        addressSuggestions: null,
       };
     }
   }
@@ -92,7 +72,8 @@ export async function runFallbackAgent(
       message:
         "Bridge exits are where we shine. We can reuse your bridge appraisal (saves ~$650), close in 14 days, and there's no prepay penalty after 6 months on the new DSCR. What's the property address?",
       actions: ["142 Oak Ridge Dr Atlanta GA 30315", "Show me current rates"],
-      propertyLookup: getLastPropertyLookup(),
+      propertyLookup: null,
+      addressSuggestions: null,
     };
   }
 
@@ -102,6 +83,7 @@ export async function runFallbackAgent(
         "I'll calculate DSCR from the address. We pull rent comps via Realie market data and run the ratio in real time. Anything above 1.0x qualifies — we prefer 1.25x+.",
       actions: ["142 Oak Ridge Dr Atlanta GA 30315", "What if DSCR is below 1.0?"],
       propertyLookup: null,
+      addressSuggestions: null,
     };
   }
 
@@ -111,6 +93,7 @@ export async function runFallbackAgent(
         "Yes — foreign national LLC borrowers are fully eligible. You'll need a US-registered LLC, ITIN or passport, and 3 months of bank statements.",
       actions: ["What docs do I need?", "Foreign national rates"],
       propertyLookup: null,
+      addressSuggestions: null,
     };
   }
 
@@ -119,5 +102,6 @@ export async function runFallbackAgent(
       "Got it. I can get you a DSCR quote, help you refi out of a bridge loan, or run cash-out numbers — all without a hard pull. What's the property address?",
     actions: ["Get a DSCR quote", "Refi out of bridge", "Check my DSCR"],
     propertyLookup: null,
+    addressSuggestions: null,
   };
 }

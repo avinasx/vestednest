@@ -339,6 +339,24 @@ export function AppFlow() {
                   </div>
                   <div>
                     <div className="cb">{m.content}</div>
+                    {m.addressSuggestions && m.addressSuggestions.length > 0 && (
+                      <div className="addrsugs">
+                        {m.addressSuggestions.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="addrsug"
+                            onClick={() => f.selectAddressSuggestion(s)}
+                            disabled={f.chatLoading}
+                          >
+                            <span className="addrsug-main">{s.label}</span>
+                            {s.zip ? (
+                              <span className="addrsug-sub">{s.zip}</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {m.actions && m.actions.length > 0 && (
                       <div className="cacts">
                         {m.actions.map((a) => (
