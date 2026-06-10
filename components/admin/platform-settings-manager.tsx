@@ -15,7 +15,7 @@ type SettingView = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  ai: "AI (Gemini)",
+  ai: "AI (Gemini & LangSmith)",
   data: "Property data",
   memory: "Memory",
   email: "Email (SendGrid)",
@@ -147,7 +147,7 @@ export function PlatformSettingsManager() {
                   </select>
                 ) : (
                   <input
-                    type={s.type === "number" ? "number" : "text"}
+                    type={s.type === "number" ? "number" : s.isSecret ? "password" : "text"}
                     value={drafts[s.key] ?? ""}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                     autoComplete={s.isSecret ? "off" : undefined}

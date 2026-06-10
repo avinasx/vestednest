@@ -52,6 +52,7 @@ export function HeroAiBar({
             <span className="landing-aibar-sep" aria-hidden />
             <AddressAutocomplete
               compact
+              addressSearchOnly
               value={heroInput}
               stateCode={heroState}
               onValueChange={onHeroInputChange}

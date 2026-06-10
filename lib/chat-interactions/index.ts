@@ -19,6 +19,7 @@ ensureInteractionHandlersRegistered();
 export * from "./types";
 export * from "./registry";
 export * from "./compat";
+export * from "./action-chips";
 export { ADDRESS_KIND, type AddressResolveInput } from "./address";
 export { ELIGIBILITY_KIND, type EligibilityResolveInput } from "./eligibility";
 export { RATE_QUOTE_KIND, type RateQuoteResolveInput } from "./rate-quote";

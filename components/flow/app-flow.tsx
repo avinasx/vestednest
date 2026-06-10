@@ -5,8 +5,8 @@ import { AddressAutocomplete } from "@/components/vestednest/address-autocomplet
 import { VestedNestLogo } from "@/components/vestednest/logo";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingPage } from "@/components/landing/landing-page";
+import { ChatMarkdown } from "./chat-markdown";
 import { FlowChrome } from "./flow-chrome";
-import { InteractionPicker } from "./interaction-picker";
 import { useLoanFlow } from "./use-loan-flow";
 import { borrowerLabel, fmtMoney, termSheetFilename } from "./utils";
 
@@ -148,15 +148,13 @@ export function AppFlow() {
                       {m.role === "user" ? "U" : null}
                     </div>
                     <div>
-                      <div className="cb">{m.content}</div>
-                      {m.interaction?.status === "needs_selection" &&
-                      m.interaction.options?.length ? (
-                        <InteractionPicker
-                          interaction={m.interaction}
-                          disabled={f.chatLoading}
-                          onSelect={f.onSelectInteractionOption}
-                        />
-                      ) : null}
+                      <div className="cb">
+                        {m.role === "assistant" ? (
+                          <ChatMarkdown content={m.content} />
+                        ) : (
+                          m.content
+                        )}
+                      </div>
                       {m.actions && m.actions.length > 0 && (
                         <div className="cacts">
                           {m.actions.map((a) => (
@@ -164,6 +162,7 @@ export function AppFlow() {
                               key={a}
                               type="button"
                               className="cact"
+                              disabled={f.chatLoading}
                               onClick={() => f.handleAction(a)}
                             >
                               {a}
@@ -175,7 +174,9 @@ export function AppFlow() {
                   </div>
                 ))}
                 {f.chatLoading && (
-                  <div style={{ fontSize: 12, color: "var(--flow-muted)" }}>Nest AI is thinking…</div>
+                  <div style={{ fontSize: 12, color: "var(--flow-muted)" }}>
+                    {f.progressText ?? "Nest AI is thinking…"}
+                  </div>
                 )}
               </div>
               <div className="flow-chat-inp">
@@ -183,6 +184,7 @@ export function AppFlow() {
                 <img src="/landing/icon-stars.svg" alt="" className="flow-inp-stars" aria-hidden />
                 <AddressAutocomplete
                   compact
+                  addressSearchOnly
                   value={f.chatInput}
                   stateCode={f.heroState}
                   onValueChange={f.setChatInput}

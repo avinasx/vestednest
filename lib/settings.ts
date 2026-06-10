@@ -4,6 +4,7 @@ export {
   buildEffectiveEnvForServer,
   ensureServerSettings,
   getIntegrationStatus,
+  invalidateServerSettingsCache,
   listPlatformSettingsForAdmin,
   resolvePlatformString,
   upsertPlatformSetting,

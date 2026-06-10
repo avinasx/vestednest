@@ -6,10 +6,13 @@ import type {
   InvestmentHorizon,
   LoanStrategy,
 } from "@/types/database";
-import type { ChatInteraction } from "@/lib/chat-interactions/types";
+import {
+  optionForSelectionAction,
+  selectionActionsFromInteraction,
+} from "@/lib/chat-interactions/action-chips";
+import type { ChatInteraction, SelectableOption } from "@/lib/chat-interactions/types";
 import { useState } from "react";
 import type { AddressSuggestion } from "@/lib/realie";
-import { InteractionPicker } from "@/components/flow/interaction-picker";
 import { AddressAutocomplete } from "./address-autocomplete";
 import { PendingBadge } from "./pending-badge";
 import { PropertySummary } from "./property-summary";
@@ -73,6 +76,47 @@ export function LoanInquiryForm() {
     setError(null);
     const field = document.getElementById("property-address");
     if (field instanceof HTMLInputElement) field.focus();
+  }
+
+  async function handleInteractionSelect(kind: string, option: SelectableOption) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loanStrategy: tabs[activeTab].value,
+          address: option.label,
+          downPaymentPct: mapDownPayment(downPaymentOptions[downPaymentIdx]),
+          ficoBand: ficoOptions[ficoIdx],
+          intendedHorizon: mapHorizon(strategyOptions[strategyIdx]),
+          borrowerType: borrowerOptions[borrowerIdx].value,
+          interactionKind: kind,
+          optionId: option.id,
+          optionMeta: option.meta,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "needs_selection" && data.interaction) {
+        setPendingInteraction(data.interaction);
+        return;
+      }
+      if (!res.ok || data.status === "blocked") {
+        setError(data.message ?? data.error ?? "Something went wrong");
+        setPendingInteraction(null);
+        return;
+      }
+      setPendingInteraction(null);
+      setResult({
+        property: data.property ?? null,
+        realieError: data.realieError ?? null,
+      });
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -217,50 +261,24 @@ export function LoanInquiryForm() {
         {pendingInteraction ? (
           <div className="inquiry-interaction">
             <p className="mb-2 text-sm text-black/80">{pendingInteraction.message}</p>
-            <InteractionPicker
-              interaction={pendingInteraction}
-              disabled={loading}
-              onSelect={async (kind, option) => {
-                setLoading(true);
-                setError(null);
-                try {
-                  const res = await fetch("/api/inquiries", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      loanStrategy: tabs[activeTab].value,
-                      address: option.label,
-                      downPaymentPct: mapDownPayment(downPaymentOptions[downPaymentIdx]),
-                      ficoBand: ficoOptions[ficoIdx],
-                      intendedHorizon: mapHorizon(strategyOptions[strategyIdx]),
-                      borrowerType: borrowerOptions[borrowerIdx].value,
-                      interactionKind: kind,
-                      optionId: option.id,
-                      optionMeta: option.meta,
-                    }),
-                  });
-                  const data = await res.json();
-                  if (data.status === "needs_selection" && data.interaction) {
-                    setPendingInteraction(data.interaction);
-                    return;
-                  }
-                  if (!res.ok || data.status === "blocked") {
-                    setError(data.message ?? data.error ?? "Something went wrong");
-                    setPendingInteraction(null);
-                    return;
-                  }
-                  setPendingInteraction(null);
-                  setResult({
-                    property: data.property ?? null,
-                    realieError: data.realieError ?? null,
-                  });
-                } catch {
-                  setError("Network error. Please try again.");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            />
+            <div className="cacts">
+              {selectionActionsFromInteraction(pendingInteraction).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="cact"
+                  disabled={loading}
+                  onClick={() => {
+                    const option = optionForSelectionAction(pendingInteraction, label);
+                    if (option) {
+                      void handleInteractionSelect(pendingInteraction.kind, option);
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 

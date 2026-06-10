@@ -331,6 +331,94 @@
   border-bottom-right-radius: 4px;
 }
 
+/* Markdown inside assistant chat bubbles */
+.flow-msg.ai .cb-md > :first-child {
+  margin-top: 0;
+}
+
+.flow-msg.ai .cb-md > :last-child {
+  margin-bottom: 0;
+}
+
+.flow-msg.ai .cb-md p {
+  margin: 0 0 0.55em;
+}
+
+.flow-msg.ai .cb-md p:last-child {
+  margin-bottom: 0;
+}
+
+.flow-msg.ai .cb-md strong {
+  font-weight: 600;
+}
+
+.flow-msg.ai .cb-md em {
+  font-style: italic;
+}
+
+.flow-msg.ai .cb-md ul,
+.flow-msg.ai .cb-md ol {
+  margin: 0.35em 0 0.55em;
+  padding-left: 1.25em;
+}
+
+.flow-msg.ai .cb-md li {
+  margin: 0.2em 0;
+}
+
+.flow-msg.ai .cb-md li > p {
+  margin: 0;
+}
+
+.flow-msg.ai .cb-md a {
+  color: #1d7a34;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.flow-msg.ai .cb-md a:hover {
+  color: #24933e;
+}
+
+.flow-msg.ai .cb-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(15, 14, 12, 0.06);
+}
+
+.flow-msg.ai .cb-md pre {
+  margin: 0.45em 0;
+  padding: 0.55em 0.7em;
+  border-radius: 8px;
+  background: rgba(15, 14, 12, 0.06);
+  overflow-x: auto;
+}
+
+.flow-msg.ai .cb-md pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.85em;
+}
+
+.flow-msg.ai .cb-md h1,
+.flow-msg.ai .cb-md h2,
+.flow-msg.ai .cb-md h3,
+.flow-msg.ai .cb-md h4 {
+  margin: 0.65em 0 0.35em;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.flow-msg.ai .cb-md h1:first-child,
+.flow-msg.ai .cb-md h2:first-child,
+.flow-msg.ai .cb-md h3:first-child,
+.flow-msg.ai .cb-md h4:first-child {
+  margin-top: 0;
+}
+
 .flow-chat-inp {
   display: flex;
   align-items: center;
@@ -461,6 +549,12 @@
   background: #fff;
   padding: 28px 32px;
   color: #0f0e0c;
+  --ti: var(--flow-text);
+  --tm: var(--flow-muted);
+  --td: #6b7280;
+  --w: #0f0e0c;
+  --bi: rgba(15, 14, 12, 0.06);
+  --bih: rgba(15, 14, 12, 0.12);
 }
 
 .flow-pdf-body .tsrow span:first-child {
@@ -474,9 +568,12 @@
   color: inherit;
 }
 
-.flow-pdf-body {
-  --td: #6b7280;
-  --w: #0f0e0c;
+.flow-pdf-body .g3 > div {
+  background: var(--cr) !important;
+}
+
+.flow-pdf-body .tsrow {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
 /* Section headers inside flow content */
@@ -533,6 +630,36 @@
   border: 1px solid #e5e2df;
   border-radius: 16px;
   padding: 22px;
+}
+
+/* Light flow panels still reference dark-theme tokens from vestednest.css
+   (--ti/--td are white tints, --bi/--bih are white borders). Remap here so
+   inline var() usage stays readable on white / cream surfaces. */
+.screen.flowbg .card,
+.screen.flowbg .flow-cleft,
+.screen.flowbg .flow-cright,
+.screen.flowbg .flow-loading-card {
+  --ti: var(--flow-text);
+  --tm: var(--flow-muted);
+  --td: var(--flow-muted);
+  --bi: rgba(15, 14, 12, 0.06);
+  --bih: rgba(15, 14, 12, 0.12);
+  color: var(--flow-text);
+}
+
+.screen.flowbg .card .clbl,
+.screen.flowbg .flow-cleft .clbl {
+  color: var(--flow-muted);
+}
+
+.screen.flowbg .comprow {
+  background: var(--cr);
+  border-color: var(--flow-border);
+}
+
+.screen.flowbg .flow-cright .tsb {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(36, 147, 62, 0.12);
 }
 
 .flow-card-dark-rent {

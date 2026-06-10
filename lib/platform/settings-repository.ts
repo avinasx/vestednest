@@ -49,6 +49,55 @@ export async function getPlatformSettingRow(
   return { value: data.value, isSecret: Boolean(data.is_secret) };
 }
 
+type PlatformSettingRow = { value: unknown; isSecret: boolean };
+
+async function loadAllPlatformSettingRows(
+  client: SupabaseClient,
+): Promise<Map<string, PlatformSettingRow>> {
+  const { data, error } = await client
+    .from("platform_settings")
+    .select("key, value, is_secret");
+  if (error) throw error;
+  return new Map(
+    (data ?? []).map((row) => [
+      row.key as string,
+      { value: row.value, isSecret: Boolean(row.is_secret) },
+    ]),
+  );
+}
+
+function resolveStringFromRow(
+  def: PlatformSettingDefinition,
+  row: PlatformSettingRow | undefined,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  if (row?.value != null && row.value !== "") {
+    const v = parseStoredValue(def, row.value);
+    if (v != null) return String(v);
+  }
+  const fromEnv = envFallback(def, env);
+  if (fromEnv) return fromEnv;
+  if (def.defaultValue != null) return String(def.defaultValue);
+  return undefined;
+}
+
+function resolveBooleanFromRow(
+  def: PlatformSettingDefinition,
+  row: PlatformSettingRow | undefined,
+  env: NodeJS.ProcessEnv,
+): boolean {
+  if (row?.value !== null && row?.value !== undefined) {
+    const v = parseStoredValue(def, row.value);
+    if (typeof v === "boolean") return v;
+  }
+  if (def.envKey) {
+    const raw = env[def.envKey]?.trim().toLowerCase();
+    if (raw === "true" || raw === "1" || raw === "yes") return true;
+    if (raw === "false" || raw === "0" || raw === "no") return false;
+  }
+  return Boolean(def.defaultValue);
+}
+
 export async function resolvePlatformString(
   client: SupabaseClient | null,
   key: string,
@@ -116,10 +165,18 @@ export async function buildEffectiveEnv(
   baseEnv: NodeJS.ProcessEnv = process.env,
 ): Promise<NodeJS.ProcessEnv> {
   const merged = { ...baseEnv } as Record<string, string | undefined>;
+  const rowsByKey = client ? await loadAllPlatformSettingRows(client) : null;
 
   for (const def of PLATFORM_SETTING_DEFINITIONS) {
     if (!def.envKey) continue;
-    const val = await envStringForDefinition(client, def, baseEnv);
+    const val =
+      rowsByKey != null
+        ? def.type === "boolean"
+          ? resolveBooleanFromRow(def, rowsByKey.get(def.key), baseEnv)
+            ? "true"
+            : "false"
+          : resolveStringFromRow(def, rowsByKey.get(def.key), baseEnv)
+        : await envStringForDefinition(client, def, baseEnv);
     if (val !== undefined) merged[def.envKey] = val;
   }
 
@@ -130,34 +187,66 @@ export async function buildEffectiveEnv(
     merged.GOOGLE_API_KEY = gemini;
   }
 
+  // LangSmith tracing — auto-enable when API key is present.
+  const langsmithKey = merged.LANGSMITH_API_KEY ?? baseEnv.LANGSMITH_API_KEY;
+  if (langsmithKey?.trim()) {
+    merged.LANGSMITH_API_KEY = langsmithKey.trim();
+    merged.LANGSMITH_TRACING = "true";
+  }
+
   return merged as NodeJS.ProcessEnv;
 }
 
+const SETTINGS_CACHE_TTL_MS = 60_000;
+
 let settingsLoadInFlight: Promise<NodeJS.ProcessEnv> | null = null;
+let cachedServerEnv: { env: NodeJS.ProcessEnv; expiresAt: number } | null = null;
+
+function applyMergedEnvToProcess(merged: NodeJS.ProcessEnv): void {
+  for (const def of PLATFORM_SETTING_DEFINITIONS) {
+    if (!def.envKey) continue;
+    const val = merged[def.envKey];
+    if (val !== undefined) {
+      (process.env as Record<string, string | undefined>)[def.envKey] = val;
+    }
+  }
+  const gemini = merged.GEMINI_API_KEY;
+  if (gemini) {
+    (process.env as Record<string, string | undefined>).GOOGLE_API_KEY = gemini;
+  }
+  if (merged.LANGSMITH_API_KEY?.trim()) {
+    (process.env as Record<string, string | undefined>).LANGSMITH_TRACING = "true";
+  }
+}
+
+/** Drop cached platform settings (call after admin updates). */
+export function invalidateServerSettingsCache(): void {
+  cachedServerEnv = null;
+}
 
 /**
  * Load platform settings via service role and sync into process.env.
- * Safe to call on every server request (deduped per tick).
+ * Safe to call on every server request (deduped + short TTL cache).
  */
 export async function buildEffectiveEnvForServer(
   baseEnv: NodeJS.ProcessEnv = process.env,
 ): Promise<NodeJS.ProcessEnv> {
+  const now = Date.now();
+  if (cachedServerEnv && cachedServerEnv.expiresAt > now) {
+    applyMergedEnvToProcess(cachedServerEnv.env);
+    return cachedServerEnv.env;
+  }
+
   if (!settingsLoadInFlight) {
     settingsLoadInFlight = (async () => {
       const client = createServiceClient();
       if (!client) return baseEnv;
       const merged = await buildEffectiveEnv(client, baseEnv);
-      for (const def of PLATFORM_SETTING_DEFINITIONS) {
-        if (!def.envKey) continue;
-        const val = merged[def.envKey];
-        if (val !== undefined) {
-          (process.env as Record<string, string | undefined>)[def.envKey] = val;
-        }
-      }
-      const gemini = merged.GEMINI_API_KEY;
-      if (gemini) {
-        (process.env as Record<string, string | undefined>).GOOGLE_API_KEY = gemini;
-      }
+      applyMergedEnvToProcess(merged);
+      cachedServerEnv = {
+        env: merged,
+        expiresAt: Date.now() + SETTINGS_CACHE_TTL_MS,
+      };
       return merged;
     })().finally(() => {
       settingsLoadInFlight = null;
@@ -180,6 +269,7 @@ export async function getIntegrationStatus(
     realie: Boolean(effective.REALIE_API_KEY),
     rentcast: Boolean(effective.RENTCAST_API_KEY),
     gemini: Boolean(effective.GOOGLE_API_KEY ?? effective.GEMINI_API_KEY),
+    langsmith: Boolean(effective.LANGSMITH_API_KEY),
     supermemory: Boolean(effective.SUPERMEMORY_API_KEY),
     sendgrid: Boolean(effective.SENDGRID_API_KEY),
     twilio: Boolean(effective.TWILIO_ACCOUNT_SID),

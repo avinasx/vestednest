@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isLikelyAddressQuery } from "@/lib/chat-intent";
 import { ADDRESS_KIND, resolveInteraction, toClientInteraction } from "@/lib/chat-interactions";
 import { ensureServerSettings } from "@/lib/settings";
 
@@ -14,6 +15,14 @@ export async function GET(request: Request) {
       { status: "invalid_input", error: "A two-letter state code is required (e.g. FL)." },
       { status: 400 },
     );
+  }
+
+  if (!isLikelyAddressQuery(query)) {
+    return NextResponse.json({
+      status: "skipped",
+      message: "Not an address query",
+      suggestions: [],
+    });
   }
 
   try {

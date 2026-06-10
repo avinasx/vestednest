@@ -28,6 +28,7 @@ export default async function AdminDashboardPage() {
     { name: "Realie", ok: integrationStatus.realie },
     { name: "RentCast", ok: integrationStatus.rentcast },
     { name: "Gemini", ok: integrationStatus.gemini },
+    { name: "LangSmith", ok: integrationStatus.langsmith },
     { name: "Supermemory", ok: integrationStatus.supermemory },
     { name: "SendGrid", ok: integrationStatus.sendgrid },
     { name: "Twilio", ok: integrationStatus.twilio },

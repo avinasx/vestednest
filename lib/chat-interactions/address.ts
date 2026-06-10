@@ -6,6 +6,7 @@ import {
   enrichPropertyIntel,
   formatAddress,
 } from "@/lib/property-intel";
+import { ADDRESS_NONE_OPTION_ID } from "./action-chips";
 import type { InteractionHandler } from "./registry";
 import type { AddressInteractionData, ChatInteraction, SelectableOption } from "./types";
 
@@ -143,7 +144,17 @@ export const addressInteractionHandler: InteractionHandler = {
     return mapResolveFailure(resolved);
   },
 
-  async resolveSelection(_optionId, meta) {
+  async resolveSelection(optionId, meta) {
+    if (optionId === ADDRESS_NONE_OPTION_ID) {
+      return {
+        status: "invalid_input",
+        kind: ADDRESS_KIND,
+        message:
+          "No problem — please retry with the full street address, city, and state.",
+        source: "parcel_search",
+      };
+    }
+
     const label = typeof meta?.label === "string" ? meta.label : "";
     const state = typeof meta?.state === "string" ? meta.state : "GA";
     if (!label) {

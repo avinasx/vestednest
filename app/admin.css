@@ -2,7 +2,10 @@
 
 .admin-page {
   position: relative;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #faf9f6;
   color: #0f0e0c;
   font-family: var(--font-geist-sans), system-ui, sans-serif;

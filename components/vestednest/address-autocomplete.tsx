@@ -1,5 +1,6 @@
 "use client";
 
+import { isLikelyAddressQuery } from "@/lib/chat-intent";
 import type { AddressSuggestion } from "@/lib/realie";
 import { US_STATES } from "@/lib/us-states";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -17,6 +18,8 @@ type AddressAutocompleteProps = {
   placeholder?: string;
   inputClassName?: string;
   onSubmit?: () => void;
+  /** When true, only hit the address API if input looks like a street address. */
+  addressSearchOnly?: boolean;
 };
 
 export function AddressAutocomplete({
@@ -30,6 +33,7 @@ export function AddressAutocomplete({
   placeholder = "Start typing a street address (e.g. 123 Main)",
   inputClassName,
   onSubmit,
+  addressSearchOnly = false,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -61,11 +65,13 @@ export function AddressAutocomplete({
 
         if (!res.ok) {
           setSuggestions([]);
-          setFetchError(
-            res.status === 401
-              ? "Session expired — refresh the page and sign in again."
-              : (data.error ?? "Could not load suggestions"),
-          );
+          if (!addressSearchOnly) {
+            setFetchError(
+              res.status === 401
+                ? "Session expired — refresh the page and sign in again."
+                : (data.error ?? "Could not load suggestions"),
+            );
+          }
           setOpen(false);
           return;
         }
@@ -74,26 +80,43 @@ export function AddressAutocomplete({
         setSuggestions(list);
         setOpen(list.length > 0);
         setActiveIndex(-1);
-        if (list.length === 0 && query.trim().length >= 2) {
+        if (
+          !addressSearchOnly &&
+          list.length === 0 &&
+          query.trim().length >= 2
+        ) {
           setFetchError(
             "No matching addresses — type the street number and name, or pick from suggestions.",
           );
+        } else if (addressSearchOnly) {
+          setFetchError(null);
         }
       } catch {
         setSuggestions([]);
-        setFetchError("Could not load suggestions");
+        if (!addressSearchOnly) {
+          setFetchError("Could not load suggestions");
+        }
         setOpen(false);
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [addressSearchOnly],
   );
 
   useEffect(() => {
     if (disabled) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (addressSearchOnly && !isLikelyAddressQuery(value)) {
+      setSuggestions([]);
+      setOpen(false);
+      setFetchError(null);
+      setLoading(false);
+      return;
+    }
+
     debounceRef.current = setTimeout(() => {
       void fetchSuggestions(value, stateCode);
     }, 300);
@@ -101,7 +124,7 @@ export function AddressAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value, stateCode, disabled, fetchSuggestions]);
+  }, [value, stateCode, disabled, fetchSuggestions, addressSearchOnly]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -216,7 +239,7 @@ export function AddressAutocomplete({
     return (
       <div ref={wrapperRef} className="relative flex-1">
         {inputEl}
-        {fetchError && !open ? (
+        {fetchError && !open && !addressSearchOnly ? (
           <p className="absolute left-0 top-full mt-1 text-xs text-red-400">{fetchError}</p>
         ) : null}
       </div>

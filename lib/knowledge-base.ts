@@ -165,6 +165,17 @@ export async function reindexKnowledgeDocument(id: string): Promise<KnowledgeDoc
 }
 
 export async function searchKnowledgeBase(query: string, limit = 5): Promise<string> {
+  const { ensureKnowledgeSourcesRegistered, searchAllKnowledgeSources } =
+    await import("@/lib/knowledge-sources");
+  ensureKnowledgeSourcesRegistered();
+
+  const registryHits = await searchAllKnowledgeSources(query, limit);
+  if (registryHits.length > 0) {
+    return registryHits
+      .map((r) => `[${r.title}]\n${r.content}`)
+      .join("\n\n---\n\n");
+  }
+
   const results = await searchKnowledgeMemory(query, limit);
   if (results.length > 0) {
     return results.map((r) => `[${r.title}]\n${r.content}`).join("\n\n---\n\n");

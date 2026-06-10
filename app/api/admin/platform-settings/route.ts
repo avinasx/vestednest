@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSuperadmin } from "@/lib/auth/admin";
+import { invalidateNestAgentCache } from "@/lib/agent/graph";
 import {
+  buildEffectiveEnvForServer,
+  invalidateServerSettingsCache,
   listPlatformSettingsForAdmin,
   PLATFORM_SETTING_BY_KEY,
   seedPlatformSettings,
@@ -42,6 +45,10 @@ export async function POST(request: Request) {
     overwrite: Boolean(body.overwrite),
     updatedBy: profile!.id,
   });
+  invalidateServerSettingsCache();
+  await buildEffectiveEnvForServer(process.env);
+  invalidateNestAgentCache();
+
   const settings = await listPlatformSettingsForAdmin(service, { revealSecrets: true });
   return NextResponse.json({ result, settings });
 }
@@ -86,6 +93,10 @@ export async function PATCH(request: Request) {
 
     await upsertPlatformSetting(service, item.key, value, profile!.id);
   }
+
+  invalidateServerSettingsCache();
+  await buildEffectiveEnvForServer(process.env);
+  invalidateNestAgentCache();
 
   const settings = await listPlatformSettingsForAdmin(service, { revealSecrets: true });
   return NextResponse.json({ settings });

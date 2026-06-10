@@ -1,19 +1,28 @@
 "use client";
 
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { calculateTermSheet } from "@/lib/dscr";
 import { ADDRESS_KIND } from "@/lib/chat-interactions";
+import { ADDRESS_NONE_OPTION_ID, optionForSelectionAction } from "@/lib/chat-interactions/action-chips";
 import type { SelectableOption } from "@/lib/chat-interactions/types";
 import type { ChatMessage, CloseTrackerData, DealState } from "./types";
+import { parseUIMessageChunkStream, uiMessageToChatMessage } from "./chat-adapter";
 import { createLoanReference, getSessionId } from "./utils";
+
+const GREETING: ChatMessage = {
+  role: "assistant",
+  content:
+    "Hi — I'm Nest AI, your DSCR advisor. Drop a property address or tell me what you're working on. I'll pull rent comps, run the math, and quote your rate live. No W2. No hard pull.",
+  actions: [],
+};
 
 export function useLoanFlow() {
   const [screen, setScreen] = useState(0);
   const [heroInput, setHeroInput] = useState("");
   const [heroState, setHeroState] = useState("GA");
   const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
   const [loadStep, setLoadStep] = useState(-1);
   const [loadDone, setLoadDone] = useState(false);
   const [deal, setDeal] = useState<DealState | null>(null);
@@ -34,10 +43,113 @@ export function useLoanFlow() {
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [closeTracker, setCloseTracker] = useState<CloseTrackerData | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [progressText, setProgressText] = useState<string | null>(null);
 
   const chatInit = useRef(false);
   const loadInit = useRef(false);
   const logRef = useRef<HTMLDivElement>(null);
+
+  const applyProperty = useCallback(
+    (data: {
+      formattedAddress: string;
+      intel: DealState["intel"];
+      termSheet: DealState["termSheet"];
+    }) => {
+      const price = data.intel.arv || data.intel.marketValue || 300000;
+      setDeal({
+        formattedAddress: data.formattedAddress,
+        intel: data.intel,
+        termSheet: data.termSheet,
+        monthlyRent: data.intel.estimatedRent,
+        fico: 752,
+        borrowerType: "llc",
+        downPaymentPct: 25,
+        interestOnly: false,
+        loanTerm: "30yr",
+        prepay: "3yr",
+        purpose: "purchase",
+      });
+      setMonthlyRent(data.intel.estimatedRent);
+      setPurchasePrice(price);
+      if (data.intel.state) setHeroState(data.intel.state);
+
+      void (async () => {
+        const res = await fetch("/api/applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: getSessionId(),
+            applicationId: applicationId ?? undefined,
+            address: data.formattedAddress,
+            propertyIntel: data.intel,
+            termSheet: data.termSheet,
+            status: "property_loaded",
+          }),
+        });
+        const json = await res.json();
+        if (json.application?.id) setApplicationId(json.application.id);
+      })();
+    },
+    [applicationId],
+  );
+
+  const {
+    messages: uiMessages,
+    sendMessage,
+    status,
+    setMessages: setUiMessages,
+  } = useChat({
+    id: getSessionId(),
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest: ({ messages }) => {
+        const last = messages[messages.length - 1];
+        const text = last?.parts
+          ?.filter((p) => p.type === "text")
+          .map((p) => (p as { text: string }).text)
+          .join("")
+          .trim();
+        return {
+          body: {
+            sessionId: getSessionId(),
+            message: text,
+          },
+        };
+      },
+    }),
+    onData: (part) => {
+      if (part.type === "data-progress") {
+        const msg = (part.data as { message?: string })?.message;
+        if (msg) setProgressText(msg);
+      }
+      if (part.type === "data-property" && part.data) {
+        const data = part.data as {
+          formattedAddress: string;
+          intel: DealState["intel"];
+          termSheet: DealState["termSheet"];
+        };
+        if (data.formattedAddress && data.intel && data.termSheet) {
+          applyProperty(data);
+        }
+      }
+    },
+    onFinish: () => {
+      setProgressText(null);
+    },
+    onError: () => {
+      setProgressText(null);
+    },
+  });
+
+  const chatLoading = status === "submitted" || status === "streaming";
+
+  const messages = useMemo(() => {
+    const adapted = uiMessages.map(uiMessageToChatMessage);
+    if (screen === 1 && chatInit.current) {
+      return [GREETING, ...adapted];
+    }
+    return adapted;
+  }, [uiMessages, screen]);
 
   useEffect(() => {
     setLoanId(createLoanReference());
@@ -130,190 +242,157 @@ export function useLoanFlow() {
     }, 50);
   }, []);
 
-  const applyProperty = useCallback(
-    (data: {
-      formattedAddress: string;
-      intel: DealState["intel"];
-      termSheet: DealState["termSheet"];
-    }) => {
-      const price = data.intel.arv || data.intel.marketValue || 300000;
-      setDeal({
-        formattedAddress: data.formattedAddress,
-        intel: data.intel,
-        termSheet: data.termSheet,
-        monthlyRent: data.intel.estimatedRent,
-        fico: 752,
-        borrowerType: "llc",
-        downPaymentPct: 25,
-        interestOnly: false,
-        loanTerm: "30yr",
-        prepay: "3yr",
-        purpose: "purchase",
-      });
-      setMonthlyRent(data.intel.estimatedRent);
-      setPurchasePrice(price);
-      if (data.intel.state) setHeroState(data.intel.state);
-
-      void (async () => {
-        const res = await fetch("/api/applications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: getSessionId(),
-            applicationId: applicationId ?? undefined,
-            address: data.formattedAddress,
-            propertyIntel: data.intel,
-            termSheet: data.termSheet,
-            status: "property_loaded",
-          }),
-        });
-        const json = await res.json();
-        if (json.application?.id) setApplicationId(json.application.id);
-      })();
-    },
-    [applicationId],
-  );
-
   const sendChat = useCallback(
     async (text: string) => {
       const msg = text.trim();
       if (!msg || chatLoading) return;
 
-      setMessages((m) => [...m, { role: "user", content: msg }]);
-      setChatLoading(true);
       scrollChat();
-
       try {
-        const history = messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: getSessionId(),
-            message: msg,
-            history,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Chat failed");
-
-        const needsSelection =
-          data.interaction?.status === "needs_selection" ||
-          Boolean(data.addressSuggestions?.length);
-
-        setMessages((m) => [
-          ...m,
+        await sendMessage({ text: msg });
+      } catch {
+        setUiMessages((prev) => [
+          ...prev,
           {
+            id: `err-${Date.now()}`,
             role: "assistant",
-            content: data.message,
-            actions: data.actions,
-            interaction: data.interaction ?? undefined,
-            addressSuggestions: data.addressSuggestions ?? undefined,
-          },
-        ]);
-
-        if (data.property && !needsSelection) {
-          applyProperty(data.property);
-        }
-      } catch (err) {
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content:
-              err instanceof Error ? err.message : "Something went wrong. Try again.",
-            actions: ["Get a DSCR quote"],
+            parts: [
+              {
+                type: "text",
+                text: "Something didn't go through on my end. Want to try that again, or ask me something else about DSCR?",
+              },
+            ],
           },
         ]);
       } finally {
-        setChatLoading(false);
         scrollChat();
       }
     },
-    [applyProperty, chatLoading, messages, scrollChat],
+    [chatLoading, scrollChat, sendMessage, setUiMessages],
   );
 
   const onSelectInteractionOption = useCallback(
     async (kind: string, option: SelectableOption) => {
       if (chatLoading) return;
 
-      setMessages((m) => [...m, { role: "user", content: option.label }]);
-      setChatLoading(true);
+      setUiMessages((prev) => [
+        ...prev,
+        {
+          id: `pick-${Date.now()}`,
+          role: "user",
+          parts: [{ type: "text", text: option.label }],
+        },
+      ]);
       scrollChat();
+      setProgressText(null);
 
       try {
-        const res = await fetch("/api/chat", {
+        const res = await fetch("/api/chat/resume", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: getSessionId(),
-            interactionKind: kind,
+            kind,
             optionId: option.id,
             optionMeta: option.meta,
           }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? data.message ?? "Request failed");
 
-        const needsSelection = data.interaction?.status === "needs_selection";
-
-        if (kind === ADDRESS_KIND && data.property && !needsSelection) {
-          applyProperty(data.property);
-          const rent = data.property.intel?.estimatedRent ?? 0;
-          const dscr = data.property.termSheet?.dscr ?? "—";
-          const rate = data.property.termSheet?.rate?.toFixed(2) ?? "—";
-
-          setMessages((m) => [
-            ...m,
-            {
-              role: "assistant",
-              content: `Got it — ${data.property.formattedAddress}.\n\n✓ Estimated rent: $${Number(rent).toLocaleString()}/mo\n✓ DSCR at 25% down: ${dscr}x\n✓ Rate: ${rate}% · 30yr Fixed\n\nReady to see the full interactive term sheet?`,
-              actions: [
-                "Yes — open term sheet",
-                "Adjust loan structure",
-                "Download PDF now",
-              ],
-              interaction: data.interaction,
-            },
-          ]);
-          return;
+        if (!res.ok || !res.body) {
+          throw new Error("Resume failed");
         }
 
-        setMessages((m) => [
-          ...m,
-          {
-            role: "assistant",
-            content: data.message,
-            actions: data.actions,
-            interaction: data.interaction,
-            addressSuggestions: data.addressSuggestions,
+        const assistantMessage: UIMessage = {
+          id: `resume-${Date.now()}`,
+          role: "assistant",
+          parts: [],
+        };
+
+        const stream = readUIMessageStream({
+          message: assistantMessage,
+          stream: parseUIMessageChunkStream(res.body),
+          onError: (error) => {
+            console.error("resume stream error", error);
           },
-        ]);
-      } catch (err) {
-        setMessages((m) => [
-          ...m,
+        });
+
+        let finalMessage = assistantMessage;
+        for await (const msg of stream) {
+          finalMessage = msg;
+          for (const part of msg.parts) {
+            if (part.type === "data-property" && part.data) {
+              const data = part.data as {
+                formattedAddress: string;
+                intel: DealState["intel"];
+                termSheet: DealState["termSheet"];
+              };
+              if (data.formattedAddress && data.intel && data.termSheet) {
+                applyProperty(data);
+              }
+            }
+          }
+        }
+
+        if (
+          kind === ADDRESS_KIND &&
+          option.id !== ADDRESS_NONE_OPTION_ID &&
+          finalMessage.parts.length === 0
+        ) {
+          const propertyMsg = messages.find((m) => m.role === "assistant" && m.content.includes("Estimated rent"));
+          if (!propertyMsg) {
+            finalMessage = {
+              ...finalMessage,
+              parts: [
+                {
+                  type: "text",
+                  text: `Got it — working on ${option.label}.`,
+                },
+              ],
+            };
+          }
+        }
+
+        setUiMessages((prev) => [...prev, finalMessage]);
+      } catch {
+        setUiMessages((prev) => [
+          ...prev,
           {
+            id: `resume-err-${Date.now()}`,
             role: "assistant",
-            content:
-              err instanceof Error
-                ? err.message
-                : "Something went wrong. Try again.",
-            actions: ["Get a DSCR quote"],
+            parts: [
+              {
+                type: "text",
+                text: "I couldn't complete that step just now. Mind trying again, or typing the address directly?",
+              },
+            ],
           },
         ]);
       } finally {
-        setChatLoading(false);
         scrollChat();
       }
     },
-    [applyProperty, chatLoading, scrollChat],
+    [applyProperty, chatLoading, messages, scrollChat, setUiMessages],
   );
 
   const handleAction = useCallback(
     (action: string) => {
+      const pendingSelection = [...messages]
+        .reverse()
+        .find(
+          (m) =>
+            m.role === "assistant" &&
+            m.interaction?.status === "needs_selection" &&
+            m.interaction.options?.length,
+        );
+
+      if (pendingSelection?.interaction) {
+        const option = optionForSelectionAction(pendingSelection.interaction, action);
+        if (option) {
+          void onSelectInteractionOption(pendingSelection.interaction.kind, option);
+          return;
+        }
+      }
+
       const lower = action.toLowerCase();
       if (
         lower.includes("term sheet") ||
@@ -328,7 +407,7 @@ export function useLoanFlow() {
       }
       sendChat(action);
     },
-    [deal, goTo, sendChat],
+    [deal, goTo, messages, onSelectInteractionOption, sendChat],
   );
 
   const startFromHero = useCallback(
@@ -431,28 +510,21 @@ export function useLoanFlow() {
     chatInit.current = false;
     loadInit.current = false;
     setDeal(null);
-    setMessages([]);
+    setUiMessages([]);
     setHeroInput("");
     setLoadStep(-1);
     setLoadDone(false);
     setApplicationId(null);
     setCloseTracker(null);
     setEmailStatus(null);
+    setProgressText(null);
     setLoanId(createLoanReference());
     goTo(0);
-  }, [goTo]);
+  }, [goTo, setUiMessages]);
 
   useEffect(() => {
     if (screen !== 1 || chatInit.current) return;
     chatInit.current = true;
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "Hi — I'm Nest AI, your DSCR advisor. Drop a property address or tell me what you're working on. I'll pull rent comps, run the math, and quote your rate live. No W2. No hard pull.",
-        actions: [],
-      },
-    ]);
     if (heroInput.trim()) {
       setTimeout(() => sendChat(heroInput.trim()), 400);
     }
@@ -500,6 +572,7 @@ export function useLoanFlow() {
     setChatInput,
     messages,
     chatLoading,
+    progressText,
     loadStep,
     loadDone,
     deal,

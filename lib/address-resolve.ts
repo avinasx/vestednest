@@ -1,4 +1,5 @@
 import { buildPropertySearchParams, parseUsAddress } from "@/lib/address";
+import { isLikelyAddressQuery } from "@/lib/chat-intent";
 import {
   lookupProperty,
   scorePropertyMatch,
@@ -205,29 +206,13 @@ export async function resolveAddressInput(
   const suggestions = viable.map((v) => toPublicSuggestion(v.suggestion));
   const message =
     suggestions.length === 1
-      ? "I found one possible match — tap it to confirm this is the right property."
-      : `I found ${suggestions.length} possible matches. Which property did you mean?`;
+      ? "Do you mean this property?"
+      : "Do you mean one of these?";
 
   return { status: "suggestions", suggestions, message };
 }
 
+/** @deprecated Prefer isLikelyAddressQuery from @/lib/chat-intent */
 export function mightBeAddressQuery(message: string): boolean {
-  const ml = message.toLowerCase();
-  if (/\d{1,5}\s+\w/.test(message)) return true;
-  if (/\d{5}/.test(message)) return true;
-  if (
-    /\b(rd|dr|st|ave|blvd|ln|ct|way|pl|cir|street|road|drive|lane)\b/i.test(
-      message,
-    )
-  ) {
-    return true;
-  }
-  if (
-    /\b(atlanta|miami|dallas|phoenix|tampa|orlando|houston|charlotte|nashville|cascade|oak|peachtree|sylvan)\b/i.test(
-      ml,
-    )
-  ) {
-    return true;
-  }
-  return false;
+  return isLikelyAddressQuery(message);
 }

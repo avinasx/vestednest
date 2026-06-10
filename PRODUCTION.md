@@ -14,6 +14,7 @@ Vested Nest is a production DSCR lending application. This document lists what *
 | `NEXT_PUBLIC_APP_URL` | — | optional | `app.base_url` | optional |
 | `ai.gemini_api_key` | — | — | **yes** | optional (seed) |
 | `ai.gemini_model` | — | — | **yes** | optional |
+| `ai.langsmith_api_key` | — | — | **yes** | optional (seed) |
 | `data.realie_api_key` | — | — | **yes** | optional (seed) |
 | `data.rentcast_api_key` | — | — | **yes** | optional (seed) |
 | `memory.supermemory_api_key` | — | — | **yes** | optional (seed) |
@@ -59,6 +60,7 @@ Configure in **Admin → Settings → Integrations** (`platform_settings`):
 | Setting key | Notes |
 |-------------|-------|
 | `ai.gemini_api_key` | Powers Nest AI chat agent (LangGraph). `GOOGLE_API_KEY` accepted as seed alias. |
+| `ai.langsmith_api_key` | Optional LangSmith tracing/evals for Nest AI. Sets `LANGSMITH_TRACING=true` when configured. |
 | `data.realie_api_key` | Property parcel data, address autocomplete |
 | `data.rentcast_api_key` | Rent comp enrichment (optional but recommended) |
 

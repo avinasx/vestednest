@@ -17,11 +17,20 @@ export const PLATFORM_SETTING_DEFINITIONS: PlatformSettingDefinition[] = [
   {
     key: "ai.gemini_model",
     label: "Gemini model",
-    description: "Model id for Nest AI (e.g. gemini-1.5-flash)",
+    description: "Model id for Nest AI (e.g. gemini-3.1-flash-lite)",
     type: "string",
     category: "ai",
     envKey: "GEMINI_MODEL",
-    defaultValue: "gemini-1.5-flash",
+    defaultValue: "gemini-3.1-flash-lite",
+  },
+  {
+    key: "ai.langsmith_api_key",
+    label: "LangSmith API key",
+    description: "Nest AI tracing and evals via LangSmith (enables LANGSMITH_TRACING when set)",
+    type: "string",
+    category: "ai",
+    envKey: "LANGSMITH_API_KEY",
+    isSecret: true,
   },
   {
     key: "data.realie_api_key",
