@@ -26,44 +26,19 @@ export function FlowSidebar({ f }: { f: LoanFlow }) {
           const done = f.screen > n;
           return (
             <div key={label}>
-              <button
-                type="button"
+              <div
                 className={`flow-stepper-item${active ? " active" : ""}${done ? " done" : ""}`}
-                onClick={() => f.goTo(n)}
+                aria-current={active ? "step" : undefined}
               >
                 <span className="flow-stepper-num">{done ? "✓" : n}</span>
                 <span className="flow-stepper-label">{label}</span>
-              </button>
+              </div>
               {i < FLOW_STEPS.length - 1 ? <div className="flow-stepper-connector" aria-hidden /> : null}
             </div>
           );
         })}
       </div>
       <div className="flow-sidebar-ft">
-        <div className="flow-sidebar-nav">
-          <button
-            type="button"
-            className="flow-sidebar-arrow"
-            disabled={f.screen <= 1}
-            onClick={() => f.goTo(Math.max(1, f.screen - 1))}
-            aria-label="Previous step"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M10 3 5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="flow-sidebar-arrow"
-            disabled={f.screen >= 7}
-            onClick={() => f.goTo(Math.min(7, f.screen + 1))}
-            aria-label="Next step"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </div>
         <button type="button" className="flow-sidebar-restart" onClick={f.resetFlow}>
           Restart
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>

@@ -20,6 +20,8 @@ type AddressAutocompleteProps = {
   onSubmit?: () => void;
   /** When true, only hit the address API if input looks like a street address. */
   addressSearchOnly?: boolean;
+  /** Plain text input — no suggest API calls or dropdown (chips handle disambiguation in chat). */
+  plainInput?: boolean;
 };
 
 export function AddressAutocomplete({
@@ -34,6 +36,7 @@ export function AddressAutocomplete({
   inputClassName,
   onSubmit,
   addressSearchOnly = false,
+  plainInput = false,
 }: AddressAutocompleteProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -105,7 +108,7 @@ export function AddressAutocomplete({
   );
 
   useEffect(() => {
-    if (disabled) return;
+    if (disabled || plainInput) return;
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -124,7 +127,7 @@ export function AddressAutocomplete({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value, stateCode, disabled, fetchSuggestions, addressSearchOnly]);
+  }, [value, stateCode, disabled, fetchSuggestions, addressSearchOnly, plainInput]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -178,7 +181,7 @@ export function AddressAutocomplete({
             value={value}
             onChange={(e) => {
               onValueChange(e.target.value);
-              setOpen(true);
+              if (!plainInput) setOpen(true);
             }}
             onFocus={() => {
               if (suggestions.length > 0) setOpen(true);
@@ -197,12 +200,12 @@ export function AddressAutocomplete({
               "w-full rounded-lg border border-black/10 bg-white px-4 py-3 text-sm font-light text-black outline-none focus:border-vn-green focus:ring-1 focus:ring-vn-green disabled:bg-[#f9f9f9]"
             }
           />
-          {loading ? (
+          {!plainInput && loading ? (
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-black/40">
               Searching…
             </span>
           ) : null}
-          {open && suggestions.length > 0 ? (
+          {!plainInput && open && suggestions.length > 0 ? (
             <ul
               id={listId}
               role="listbox"

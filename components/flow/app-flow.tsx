@@ -184,7 +184,7 @@ export function AppFlow() {
                 <img src="/landing/icon-stars.svg" alt="" className="flow-inp-stars" aria-hidden />
                 <AddressAutocomplete
                   compact
-                  addressSearchOnly
+                  plainInput
                   value={f.chatInput}
                   stateCode={f.heroState}
                   onValueChange={f.setChatInput}

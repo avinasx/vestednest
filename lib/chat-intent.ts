@@ -1,5 +1,6 @@
 import { parseUsAddress } from "@/lib/address";
 import { looksLikeGibberish } from "@/lib/address-resolve";
+import { FLOW_NEXT_STEP_CHIPS, withNextStepChip } from "@/lib/flow-step-chips";
 
 export type ChatHistoryItem = { role: "user" | "assistant"; content: string };
 
@@ -85,13 +86,27 @@ export function suggestFollowUpActions(
 
   if (hasProperty) {
     if (ml.includes("adjust") || ml.includes("structure") || ml.includes("ltv")) {
-      return [
-        "Try 30% down instead",
-        "Switch to interest-only",
-        "Yes — open term sheet",
-      ];
+      return withNextStepChip(
+        ["Try 30% down instead", "Switch to interest-only", "Download PDF now"],
+        FLOW_NEXT_STEP_CHIPS.openTermSheet,
+      );
     }
-    return ["Yes — open term sheet", "Adjust loan structure", "Download PDF now"];
+    if (ml.includes("term sheet") || ml.includes("download pdf")) {
+      return withNextStepChip(
+        ["Adjust loan structure", "Download PDF now", "Structure loan"],
+        FLOW_NEXT_STEP_CHIPS.propertyIntel,
+      );
+    }
+    if (ml.includes("property intel") || ml.includes("parcel") || ml.includes("rent comp")) {
+      return withNextStepChip(
+        ["Adjust loan structure", "Download PDF now"],
+        FLOW_NEXT_STEP_CHIPS.loanStructure,
+      );
+    }
+    return withNextStepChip(
+      ["Adjust loan structure", "Download PDF now"],
+      FLOW_NEXT_STEP_CHIPS.openTermSheet,
+    );
   }
 
   if (

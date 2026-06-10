@@ -8,6 +8,7 @@ import { ADDRESS_KIND } from "@/lib/chat-interactions";
 import { ADDRESS_NONE_OPTION_ID, optionForSelectionAction } from "@/lib/chat-interactions/action-chips";
 import type { SelectableOption } from "@/lib/chat-interactions/types";
 import type { ChatMessage, CloseTrackerData, DealState } from "./types";
+import { screenForFlowChip, withNextStepChip, FLOW_NEXT_STEP_CHIPS } from "@/lib/flow-step-chips";
 import { parseUIMessageChunkStream, uiMessageToChatMessage } from "./chat-adapter";
 import { createLoanReference, getSessionId } from "./utils";
 
@@ -145,11 +146,30 @@ export function useLoanFlow() {
 
   const messages = useMemo(() => {
     const adapted = uiMessages.map(uiMessageToChatMessage);
+
+    const withFlowHints =
+      screen === 1 && deal
+        ? adapted.map((m, i) => {
+            if (m.role !== "assistant" || !m.actions?.length) return m;
+            if (m.interaction?.status === "needs_selection") return m;
+            const isLastAssistant =
+              adapted.slice(i + 1).every((later) => later.role !== "assistant");
+            if (!isLastAssistant) return m;
+            return {
+              ...m,
+              actions: withNextStepChip(
+                m.actions,
+                FLOW_NEXT_STEP_CHIPS.openTermSheet,
+              ),
+            };
+          })
+        : adapted;
+
     if (screen === 1 && chatInit.current) {
-      return [GREETING, ...adapted];
+      return [GREETING, ...withFlowHints];
     }
-    return adapted;
-  }, [uiMessages, screen]);
+    return withFlowHints;
+  }, [uiMessages, screen, deal]);
 
   useEffect(() => {
     setLoanId(createLoanReference());
@@ -374,6 +394,17 @@ export function useLoanFlow() {
     [applyProperty, chatLoading, messages, scrollChat, setUiMessages],
   );
 
+  const downloadPdf = useCallback(async () => {
+    let id = applicationId;
+    if (!id) {
+      id = await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
+    } else {
+      await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
+    }
+    if (!id) return;
+    window.open(`/api/term-sheet/pdf?id=${id}`, "_blank");
+  }, [applicationId, liveTermSheet, saveApplication]);
+
   const handleAction = useCallback(
     (action: string) => {
       const pendingSelection = [...messages]
@@ -393,21 +424,24 @@ export function useLoanFlow() {
         }
       }
 
-      const lower = action.toLowerCase();
-      if (
-        lower.includes("term sheet") ||
-        lower.includes("yes") ||
-        lower.includes("open")
-      ) {
+      const flowScreen = screenForFlowChip(action);
+      if (flowScreen != null) {
         sendChat(action);
-        if (deal) {
-          setTimeout(() => goTo(2), 1200);
+        if (deal || flowScreen > 1) {
+          setTimeout(() => goTo(flowScreen), 800);
         }
         return;
       }
+
+      const lower = action.toLowerCase();
+      if (lower.includes("download pdf")) {
+        void downloadPdf();
+        return;
+      }
+
       sendChat(action);
     },
-    [deal, goTo, messages, onSelectInteractionOption, sendChat],
+    [deal, downloadPdf, goTo, messages, onSelectInteractionOption, sendChat],
   );
 
   const startFromHero = useCallback(
@@ -419,17 +453,6 @@ export function useLoanFlow() {
     },
     [goTo, heroInput],
   );
-
-  const downloadPdf = useCallback(async () => {
-    let id = applicationId;
-    if (!id) {
-      id = await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
-    } else {
-      await saveApplication({ status: "term_sheet", termSheet: liveTermSheet ?? undefined });
-    }
-    if (!id) return;
-    window.open(`/api/term-sheet/pdf?id=${id}`, "_blank");
-  }, [applicationId, liveTermSheet, saveApplication]);
 
   const emailTermSheet = useCallback(async () => {
     if (!emailInput.includes("@")) {
