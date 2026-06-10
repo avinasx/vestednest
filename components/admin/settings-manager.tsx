@@ -8,7 +8,9 @@ export function SettingsManager() {
   const [fundedStates, setFundedStates] = useState("");
   const [baseRate, setBaseRate] = useState("7.99");
   const [envStatus, setEnvStatus] = useState<EnvStatus>({});
-  const [officers, setOfficers] = useState<{ id: string; name: string; email: string; active: boolean }[]>([]);
+  const [officers, setOfficers] = useState<
+    { id: string; name: string; email: string; active: boolean }[]
+  >([]);
   const [loName, setLoName] = useState("");
   const [loEmail, setLoEmail] = useState("");
   const [loPhone, setLoPhone] = useState("");
@@ -67,80 +69,91 @@ export function SettingsManager() {
   }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Environment status</h2>
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+    <div className="admin-stack admin-stack--lg">
+      <section className="admin-card">
+        <h2 className="admin-card-title">Environment status</h2>
+        <ul className="admin-env-grid admin-card-body">
           {Object.entries(envStatus).map(([key, ok]) => (
-            <li key={key} className="flex items-center gap-2 text-sm">
-              <span className={ok ? "text-green-600" : "text-amber-600"}>
-                {ok ? "✓" : "○"}
-              </span>
-              <span className="text-black/70">{key}</span>
+            <li key={key} className="admin-env-item">
+              <span className={ok ? "admin-env-ok" : "admin-env-warn"}>{ok ? "✓" : "○"}</span>
+              <span>{key}</span>
             </li>
           ))}
         </ul>
       </section>
 
-      <form onSubmit={saveSettings} className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Rate & eligibility</h2>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-sm text-black/70">Base rate (%)</label>
+      <form onSubmit={saveSettings} className="admin-card">
+        <h2 className="admin-card-title">Rate & eligibility</h2>
+        <div className="admin-form-stack admin-card-body">
+          <div className="admin-field">
+            <label className="admin-label" htmlFor="base-rate">
+              Base rate (%)
+            </label>
             <input
-              className="mt-1 w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm"
+              id="base-rate"
+              className="admin-input"
+              style={{ maxWidth: 200 }}
               value={baseRate}
               onChange={(e) => setBaseRate(e.target.value)}
             />
           </div>
-          <div>
-            <label className="block text-sm text-black/70">Funded states (comma-separated 2-letter codes)</label>
+          <div className="admin-field">
+            <label className="admin-label" htmlFor="funded-states">
+              Funded states (comma-separated 2-letter codes)
+            </label>
             <textarea
-              className="mt-1 w-full rounded-lg border border-black/10 px-4 py-2 text-sm font-mono"
+              id="funded-states"
+              className="admin-textarea"
               rows={3}
               value={fundedStates}
               onChange={(e) => setFundedStates(e.target.value)}
             />
           </div>
-          <button type="submit" className="rounded-full bg-vn-green px-6 py-2 text-sm font-medium text-white">
+          <button type="submit" className="admin-btn-primary">
             {saved ? "Saved!" : "Save settings"}
           </button>
         </div>
       </form>
 
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Loan officers</h2>
-        <form onSubmit={addOfficer} className="mt-4 flex flex-wrap gap-3">
+      <section className="admin-card">
+        <h2 className="admin-card-title">Loan officers</h2>
+        <form onSubmit={addOfficer} className="admin-inline-form admin-card-body">
           <input
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-input admin-input--inline"
             placeholder="Name"
             value={loName}
             onChange={(e) => setLoName(e.target.value)}
             required
           />
           <input
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-input admin-input--inline"
             placeholder="Email"
             value={loEmail}
             onChange={(e) => setLoEmail(e.target.value)}
             required
           />
           <input
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-input admin-input--inline"
             placeholder="Phone"
             value={loPhone}
             onChange={(e) => setLoPhone(e.target.value)}
           />
-          <button type="submit" className="rounded-full border border-black/10 px-4 py-2 text-sm">
+          <button type="submit" className="admin-btn-secondary">
             Add officer
           </button>
         </form>
-        <ul className="mt-4 divide-y divide-black/5">
+        <ul className="admin-list admin-list--divided admin-card-body">
           {officers.map((o) => (
-            <li key={o.id} className="py-3 text-sm">
-              <span className="font-medium">{o.name}</span>
-              <span className="text-black/50"> · {o.email}</span>
-              {!o.active ? <span className="ml-2 text-amber-600">inactive</span> : null}
+            <li key={o.id}>
+              <div>
+                <span className="admin-list-item-title">{o.name}</span>
+                <span className="admin-list-item-meta"> · {o.email}</span>
+                {!o.active ? (
+                  <span style={{ marginLeft: 8, color: "#d97706", fontSize: "0.75rem" }}>
+                    inactive
+                  </span>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>

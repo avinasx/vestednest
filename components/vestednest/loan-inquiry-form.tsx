@@ -150,37 +150,29 @@ export function LoanInquiryForm() {
   }
 
   return (
-    <form
-      id="loan-inquiry-form"
-      onSubmit={handleSubmit}
-      className="relative mt-10 overflow-hidden rounded-xl border border-black/5 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
-    >
-      <div className="flex items-center gap-2 border-b border-black/5 bg-[#fcfcfc] px-4 py-3">
-        <span className="size-3 rounded-full bg-[#9a9a9a]/40" />
-        <span className="size-3 rounded-full bg-[#9a9a9a]/30" />
-        <span className="size-3 rounded-full bg-[#9a9a9a]/20" />
+    <form id="loan-inquiry-form" onSubmit={handleSubmit} className="inquiry-form">
+      <div className="inquiry-form-chrome">
+        <span className="inquiry-dot inquiry-dot--red" />
+        <span className="inquiry-dot inquiry-dot--yellow" />
+        <span className="inquiry-dot inquiry-dot--green" />
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-b border-black/5 bg-[#f3f3f3] px-4 py-3">
+      <div className="inquiry-form-tabs">
         {tabs.map((tab, i) => (
           <button
             key={tab.value}
             type="button"
             onClick={() => setActiveTab(i)}
-            className={`rounded-md px-3 py-1.5 text-[13px] ${
-              i === activeTab
-                ? "bg-white font-semibold text-black shadow-sm"
-                : "font-light text-black/70"
-            }`}
+            className={`inquiry-tab${i === activeTab ? " inquiry-tab--active" : ""}`}
           >
             {tab.label}
           </button>
         ))}
         <PendingBadge
-          className="ml-auto"
+          className="inquiry-pending-badge"
           label="loan strategy selection does not change pricing yet, implementation pending"
         />
       </div>
-      <div className="space-y-6 p-6">
+      <div className="inquiry-form-body">
         <AddressAutocomplete
           value={address}
           stateCode={stateCode}
@@ -223,11 +215,10 @@ export function LoanInquiryForm() {
         />
 
         {pendingInteraction ? (
-          <div className="rounded-lg border border-black/10 bg-[#fafafa] px-4 py-3">
+          <div className="inquiry-interaction">
             <p className="mb-2 text-sm text-black/80">{pendingInteraction.message}</p>
             <InteractionPicker
               interaction={pendingInteraction}
-              variant="light"
               disabled={loading}
               onSelect={async (kind, option) => {
                 setLoading(true);
@@ -273,23 +264,17 @@ export function LoanInquiryForm() {
           </div>
         ) : null}
 
-        {error ? (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
+        {error ? <p className="secondary-error">{error}</p> : null}
 
         {result ? (
-          <div className="rounded-lg border border-black/10 p-4">
+          <div className="inquiry-result">
             {result.property ? (
               <>
-                <p className="text-sm font-medium text-vn-green">
-                  Property details
-                </p>
+                <p className="inquiry-result-label">Property details</p>
                 <PropertySummary property={result.property} />
               </>
             ) : (
-              <p className="mt-2 text-sm text-black/70">
+              <p className="inquiry-result-empty">
                 {result.realieError ??
                   "No property record found for this address. Try another address or refine the street and state."}
               </p>
@@ -298,29 +283,18 @@ export function LoanInquiryForm() {
         ) : null}
 
         {result ? (
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-vn-green text-base font-semibold text-white sm:w-auto sm:px-8"
-          >
+          <button type="button" onClick={resetForm} className="secondary-btn-primary">
             Search another property
           </button>
         ) : (
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-vn-green text-base font-semibold text-white disabled:opacity-60 sm:w-auto sm:px-8"
-          >
+          <button type="submit" disabled={loading} className="secondary-btn-primary">
             {loading ? "Saving inquiry…" : "Get property details"}
           </button>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-6 border-t border-black/5 px-6 py-4">
+      <div className="inquiry-form-foot">
         {checks.map((item) => (
-          <span
-            key={item}
-            className="inline-flex items-center gap-1.5 text-base font-medium text-vn-green"
-          >
+          <span key={item} className="inquiry-check">
             {item}
             {item.includes("No account needed") ? (
               <PendingBadge label="sign-in is currently required, implementation pending" />
@@ -346,22 +320,18 @@ function OptionGroup({
   pending?: boolean;
 }) {
   return (
-    <div>
-      <p className="mb-2 flex items-center gap-2 text-lg text-black">
+    <div className="inquiry-option-group">
+      <p className="inquiry-option-label">
         {label}
         {pending ? <PendingBadge label={PRICING_PENDING_LABEL} /> : null}
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="inquiry-pills">
         {options.map((opt, i) => (
           <button
             key={opt}
             type="button"
             onClick={() => onSelect(i)}
-            className={`rounded-md px-3 py-1.5 text-xs ${
-              i === active
-                ? "bg-vn-green font-semibold text-white"
-                : "bg-[#f3f3f3] font-light text-black"
-            }`}
+            className={`inquiry-pill${i === active ? " inquiry-pill--active" : ""}`}
           >
             {opt}
           </button>

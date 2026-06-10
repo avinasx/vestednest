@@ -51,9 +51,10 @@ export function KnowledgeManager() {
       body: JSON.stringify({
         title,
         source_type: sourceType,
-        content: sourceType === "markdown" || sourceType === "pdf" || sourceType === "docx"
-          ? content
-          : undefined,
+        content:
+          sourceType === "markdown" || sourceType === "pdf" || sourceType === "docx"
+            ? content
+            : undefined,
         source_url: sourceType === "url" ? sourceUrl : undefined,
       }),
     });
@@ -84,22 +85,22 @@ export function KnowledgeManager() {
   }
 
   return (
-    <div className="space-y-8">
-      <form onSubmit={handleCreate} className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Add document</h2>
-        <p className="mt-1 text-xs text-black/50">
+    <div className="admin-stack admin-stack--lg">
+      <form onSubmit={handleCreate} className="admin-card">
+        <h2 className="admin-card-title">Add document</h2>
+        <p className="admin-card-sub">
           Content is sanitized before Supermemory indexing — lender names and PII are stripped.
         </p>
-        <div className="mt-4 space-y-4">
+        <div className="admin-form-stack admin-card-body">
           <input
-            className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-input"
             placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
           />
           <select
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-select"
             value={sourceType}
             onChange={(e) =>
               setSourceType(e.target.value as "markdown" | "url" | "pdf" | "docx")
@@ -112,7 +113,7 @@ export function KnowledgeManager() {
           </select>
           {sourceType === "url" ? (
             <input
-              className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm"
+              className="admin-input"
               placeholder="https://…"
               value={sourceUrl}
               onChange={(e) => setSourceUrl(e.target.value)}
@@ -120,7 +121,7 @@ export function KnowledgeManager() {
             />
           ) : (
             <textarea
-              className="w-full rounded-lg border border-black/10 px-4 py-2 font-mono text-sm"
+              className="admin-textarea"
               rows={8}
               placeholder="Paste content…"
               value={content}
@@ -129,55 +130,62 @@ export function KnowledgeManager() {
             />
           )}
           {content ? (
-            <div className="rounded-lg bg-vn-bg p-3 text-xs text-black/60">
-              <div className="font-medium text-black/70">Sanitization preview</div>
-              <p className="mt-1">{previewSanitized(content)}…</p>
+            <div className="admin-preview">
+              <div className="admin-preview-title">Sanitization preview</div>
+              <p style={{ marginTop: 6 }}>{previewSanitized(content)}…</p>
             </div>
           ) : null}
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <button
-            type="submit"
-            className="rounded-full bg-vn-green px-6 py-2 text-sm font-medium text-white"
-          >
+          {error ? <p className="secondary-error">{error}</p> : null}
+          <button type="submit" className="admin-btn-primary">
             Add & sync to Supermemory
           </button>
         </div>
       </form>
 
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Documents ({docs.length})</h2>
+      <section className="admin-card">
+        <h2 className="admin-card-title">Documents ({docs.length})</h2>
         {loading ? (
-          <p className="mt-4 text-sm text-black/50">Loading…</p>
+          <p className="admin-card-body admin-message">Loading…</p>
         ) : docs.length === 0 ? (
-          <p className="mt-4 text-sm text-black/50">No documents yet.</p>
+          <p className="admin-card-body admin-message">No documents yet.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-black/5">
+          <ul className="admin-list admin-list--divided admin-card-body">
             {docs.map((doc) => (
-              <li key={doc.id} className="flex items-start justify-between py-4">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-black">{doc.title}</div>
-                  <div className="text-xs text-black/50">
+              <li key={doc.id} style={{ alignItems: "flex-start" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="admin-list-item-title">{doc.title}</div>
+                  <div className="admin-list-item-meta">
                     {doc.source_type} · {new Date(doc.created_at).toLocaleDateString()}
                   </div>
                   {doc.content ? (
-                    <p className="mt-1 line-clamp-2 text-sm text-black/60">
+                    <p
+                      style={{
+                        marginTop: 6,
+                        fontSize: "0.875rem",
+                        color: "#6b7280",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
                       {doc.content.slice(0, 200)}…
                     </p>
                   ) : null}
                 </div>
-                <div className="ml-4 flex shrink-0 gap-3">
+                <div className="admin-actions" style={{ flexShrink: 0 }}>
                   <button
                     type="button"
                     disabled={reindexing === doc.id}
                     onClick={() => handleReindex(doc.id)}
-                    className="text-sm text-vn-green hover:underline disabled:opacity-50"
+                    className="admin-btn-link"
                   >
                     {reindexing === doc.id ? "Reindexing…" : "Reindex"}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(doc.id)}
-                    className="text-sm text-red-600 hover:underline"
+                    className="admin-btn-danger"
                   >
                     Delete
                   </button>

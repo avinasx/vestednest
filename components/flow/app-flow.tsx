@@ -1,24 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { AddressAutocomplete } from "@/components/vestednest/address-autocomplete";
-import { HomeIcon, MicIcon, SendIcon } from "./icons";
+import { VestedNestLogo } from "@/components/vestednest/logo";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { LandingPage } from "@/components/landing/landing-page";
+import { FlowChrome } from "./flow-chrome";
 import { InteractionPicker } from "./interaction-picker";
 import { useLoanFlow } from "./use-loan-flow";
-import {
-  autoResize,
-  borrowerLabel,
-  fmtMoney,
-  termSheetFilename,
-} from "./utils";
-
-const CHIPS = [
-  { emoji: "🏠", text: "I want to buy a rental property and get a DSCR quote" },
-  { emoji: "🔄", text: "I want to refi out of my bridge loan into DSCR" },
-  { emoji: "💰", text: "I want to do a cash-out refinance on my rental property" },
-  { emoji: "📊", text: "What is my DSCR on 142 Oak Ridge Dr Atlanta GA 30315" },
-  { emoji: "🌍", text: "I have a foreign national LLC can I still qualify" },
-];
+import { borrowerLabel, fmtMoney, termSheetFilename } from "./utils";
 
 const LOAD_STEPS = [
   {
@@ -42,116 +32,6 @@ const LOAD_STEPS = [
     sub: "Rate, points, PITIA, cash to close, reserve requirement",
   },
 ];
-
-const FLOW_STEPS = [
-  "AI support",
-  "Loading property",
-  "Property intel",
-  "Calculator",
-  "Term sheet",
-  "Pre-qualification",
-  "Close tracker",
-] as const;
-
-type LoanFlow = ReturnType<typeof useLoanFlow>;
-
-function FlowTopNav({
-  onHome,
-  onStart,
-}: {
-  onHome: () => void;
-  onStart: () => void;
-}) {
-  return (
-    <nav className="flow-topnav">
-      <button type="button" className="tlogo" onClick={onHome} style={{ background: "none", border: "none", cursor: "pointer" }}>
-        <span className="dot" />
-        vestednest
-      </button>
-      <div className="tlinks">
-        {["What we do", "DSCR loans", "Resources", "About Us"].map((l) => (
-          <button key={l} type="button" className="tl">
-            {l}
-          </button>
-        ))}
-      </div>
-      <div className="row ic gap8">
-        <button type="button" className="sign-in">
-          Sign in
-        </button>
-        <button type="button" className="flow-cta" onClick={onStart}>
-          Get pre-qualified
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-function FlowSidebar({ f }: { f: LoanFlow }) {
-  return (
-    <aside className="flow-sidebar">
-      <div className="flow-sidebar-title">Your loan journey</div>
-      <div className="flow-steps">
-        {FLOW_STEPS.map((label, i) => {
-          const n = i + 1;
-          const active = f.screen === n;
-          const done = f.screen > n;
-          return (
-            <button
-              key={label}
-              type="button"
-              className={`flow-step${active ? " active" : ""}${done ? " done" : ""}`}
-              onClick={() => f.goTo(n)}
-            >
-              <span className="flow-step-num">{done ? "✓" : n}</span>
-              <span className="flow-step-label">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flow-sidebar-ft">
-        <div className="row gap8">
-          <button
-            type="button"
-            className="flow-navbtn"
-            style={{ flex: 1 }}
-            disabled={f.screen <= 1}
-            onClick={() => f.goTo(Math.max(1, f.screen - 1))}
-          >
-            ← Prev
-          </button>
-          <button
-            type="button"
-            className="flow-navbtn"
-            style={{ flex: 1 }}
-            disabled={f.screen >= 7}
-            onClick={() => f.goTo(Math.min(7, f.screen + 1))}
-          >
-            Next →
-          </button>
-        </div>
-        <button type="button" className="flow-navbtn restart" onClick={f.resetFlow}>
-          Restart flow
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function FlowChrome({ f, children }: { f: LoanFlow; children: ReactNode }) {
-  return (
-    <div className="flow-body">
-      <FlowTopNav onHome={() => f.goTo(0)} onStart={() => f.startFromHero()} />
-      <div className="flow-layout">
-        <FlowSidebar f={f} />
-        <div className="flow-main">{children}</div>
-      </div>
-      <button type="button" className="flow-fab" aria-label="Help">
-        ?
-      </button>
-    </div>
-  );
-}
 
 function BorrowerOption({
   label,
@@ -225,194 +105,38 @@ function TogglePill({
 
 export function AppFlow() {
   const f = useLoanFlow();
+  const [flowReady, setFlowReady] = useState(false);
   const ts = f.liveTermSheet;
   const intel = f.deal?.intel;
   const shortAddr = intel
     ? `${intel.addressLine}, ${intel.city}`
     : f.addressLabel;
 
+  useEffect(() => {
+    setFlowReady(true);
+  }, []);
+
   return (
     <>
-      {/* S0 Homepage */}
-      <div className={`screen dkbg${f.screen === 0 ? " active" : ""}`}>
-        <div className="herobg" style={{ flex: 1 }}>
-          <div className="heroglow" />
-          <div className="herogrid" />
-          <nav className="tnav dk" style={{ position: "relative", zIndex: 10 }}>
-            <div className="tlogo wh">
-              <span className="dot" />
-              vestednest
-            </div>
-            <div className="tlinks">
-              <button type="button" className="tl wh">
-                What we do
-              </button>
-              <button type="button" className="tl wh">
-                DSCR loans
-              </button>
-              <button type="button" className="tl wh">
-                Resources
-              </button>
-              <button type="button" className="tl wh">
-                About Us
-              </button>
-            </div>
-            <div className="row ic gap12">
-              <button type="button" className="tl wh" style={{ fontWeight: 600 }}>
-                Sign in
-              </button>
-              <button type="button" className="tcta" onClick={() => f.startFromHero()}>
-                Get pre-qualified
-              </button>
-            </div>
-          </nav>
-          <div className="heroinner">
-            <div className="badge gn mb20">
-              <span className="bdot" />
-              America&apos;s first agentic DSCR lender
-            </div>
-            <h1 className="h1-flow mb20">
-              Most lenders qualify you.
-              <br />
-              We qualify <em>the property.</em>
-            </h1>
-            <p
-              style={{
-                fontSize: 17,
-                lineHeight: 1.7,
-                color: "var(--tm)",
-                maxWidth: 520,
-                marginBottom: 32,
-              }}
-            >
-              Drop an address — or just ask. Our AI reads the rent comps, runs the math,
-              and quotes rate, points, and payment on screen. No W2. No DTI. No 30-day
-              forms.
-            </p>
-            <div className="stats mb36" style={{ marginBottom: 36 }}>
-              <div className="stat">
-                <div className="stn">$1.4B+</div>
-                <div className="stl tc">Funded Since 2019</div>
-              </div>
-              <div className="stat">
-                <div className="stn">4.9/5</div>
-                <div className="stl tc">Operator NPS</div>
-              </div>
-              <div className="stat">
-                <div className="stn">14 days</div>
-                <div className="stl tc">Median Close</div>
-              </div>
-              <div className="stat">
-                <div className="stn">38</div>
-                <div className="stl tc">States Funded</div>
-              </div>
-            </div>
-            <div className="aibar">
-              <div className="aibar-top">
-                <div className="ai-ico">
-                  <HomeIcon />
-                </div>
-                <AddressAutocomplete
-                  compact
-                  value={f.heroInput}
-                  stateCode={f.heroState}
-                  onValueChange={f.setHeroInput}
-                  onStateChange={f.setHeroState}
-                  onSelect={(s) => {
-                    f.setHeroInput(s.label);
-                    if (s.state) f.setHeroState(s.state);
-                  }}
-                  placeholder="Drop an address, or ask — e.g. I want to refi out of my bridge loan"
-                  inputClassName="ai-inp"
-                  onSubmit={() => f.startFromHero()}
-                />
-                <button type="button" className="amic" aria-label="Voice input">
-                  <MicIcon />
-                </button>
-                <button type="button" className="asend" onClick={() => f.startFromHero()} aria-label="Send">
-                  <SendIcon />
-                </button>
-              </div>
-              <div className="chips">
-                {CHIPS.map((c) => (
-                  <button
-                    key={c.text}
-                    type="button"
-                    className="chip"
-                    onClick={() => f.startFromHero(c.text)}
-                  >
-                    {c.emoji} {c.text.replace(/^I want to /, "").slice(0, 22)}
-                    {c.text.length > 30 ? "…" : ""}
-                  </button>
-                ))}
-              </div>
-              <div className="aifoot">
-                <div className="fnote">🔒 No hard pull · No W2 · No DTI</div>
-                <div className="mrow">
-                  <span className="mlbl">AI Mode</span>
-                  <label className="mtog">
-                    <input
-                      type="checkbox"
-                      checked={f.classicMode}
-                      onChange={(e) => f.setClassicMode(e.target.checked)}
-                    />
-                    <span className="mslide" />
-                  </label>
-                  <span className="moff">Classic</span>
-                </div>
-              </div>
-            </div>
-            <button type="button" className="fly-cta mt16" onClick={() => f.startFromHero()}>
-              Close it on the Fly!
-            </button>
-            <p style={{ fontSize: 11, color: "var(--td)", marginTop: 16 }}>
-              Chat sessions help us quote you faster. By using chat, you agree to our
-              privacy policy.
-            </p>
-          </div>
-          <div className="press">
-            {["BiggerPockets", "Bloomberg", "Inman", "HousingWire", "The Real Deal"].map(
-              (p) => (
-                <span key={p} className="pi">
-                  {p}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
+      <div className="app-top-nav">
+        <LandingNav onGetPreQualified={() => f.startFromHero()} />
       </div>
 
+      {/* S0 Landing page (Figma v1) */}
+      <div className={`screen landing${f.screen === 0 ? " active" : ""}`}>
+        <LandingPage f={f} />
+      </div>
+
+      {flowReady ? (
+      <>
       {/* S1 Chat */}
       <div className={`screen flowbg${f.screen === 1 ? " active" : ""}`}>
         <FlowChrome f={f}>
-          <div className="chat-panel">
-            <div className="chat-panel-hd">
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 17,
-                }}
-              >
-                🏠
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="serif">Nest AI</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>
-                  DSCR advisor · No hard pull · Instant quotes
-                </div>
-              </div>
-              <div className="badge wh" style={{ background: "rgba(255,255,255,.15)", borderColor: "rgba(255,255,255,.25)" }}>
-                <span className="bdot" />
-                Live
-              </div>
+          <div className="flow-chat-panel">
+            <div className="flow-chat-hd">
+              <VestedNestLogo variant="light" />
             </div>
-            <div className="chat-panel-bd">
+            <div className="flow-chat-bd">
               <div className="flow-clog" ref={f.logRef}>
                 {f.messages.map((m, i) => (
                   <div
@@ -420,8 +144,8 @@ export function AppFlow() {
                     className={`flow-msg ${m.role === "user" ? "u" : "ai"}`}
                     style={{ animation: "fadeUp .3s ease both" }}
                   >
-                    <div className={`cav ${m.role === "user" ? "uv" : "aiv"}`}>
-                      {m.role === "user" ? "U" : "🏠"}
+                    <div className={`flow-avatar ${m.role === "user" ? "user" : "ai"}`}>
+                      {m.role === "user" ? "U" : null}
                     </div>
                     <div>
                       <div className="cb">{m.content}</div>
@@ -455,6 +179,8 @@ export function AppFlow() {
                 )}
               </div>
               <div className="flow-chat-inp">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/landing/icon-stars.svg" alt="" className="flow-inp-stars" aria-hidden />
                 <AddressAutocomplete
                   compact
                   value={f.chatInput}
@@ -465,8 +191,8 @@ export function AppFlow() {
                     f.setChatInput(s.label);
                     if (s.state) f.setHeroState(s.state);
                   }}
-                  placeholder="Reply here, or drop a property address…"
-                  inputClassName="cinp"
+                  placeholder="Drop an address, or ask — e.g. I want to refi out of my bridge loan"
+                  inputClassName="landing-aibar-input"
                   onSubmit={() => {
                     const v = f.chatInput;
                     f.setChatInput("");
@@ -475,17 +201,20 @@ export function AppFlow() {
                 />
                 <button
                   type="button"
-                  className="csendbtn"
+                  className="landing-aibar-send"
                   onClick={() => {
                     const v = f.chatInput;
                     f.setChatInput("");
                     f.sendChat(v);
                   }}
+                  aria-label="Send"
                 >
-                  ↑
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden>
+                    <path d="M3.5 10h13m0 0-5-5m5 5-5 5" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               </div>
-              <p style={{ fontSize: 11, color: "var(--flow-muted)", textAlign: "center", marginTop: 7 }}>
+              <p className="flow-chat-footnote">
                 No hard pull · No W2 · Soft credit only when you proceed
               </p>
             </div>
@@ -574,7 +303,7 @@ export function AppFlow() {
       {intel && (
         <div className={`screen flowbg${f.screen === 3 ? " active" : ""}`}>
           <FlowChrome f={f}>
-          <div className="flow-content-scroll">
+          <div className="flow-main-scroll">
             <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
               <div className="row jb ic mb16">
                 <div className="row ic gap8">
@@ -663,16 +392,7 @@ export function AppFlow() {
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    background: "var(--f)",
-                    border: "1px solid var(--bi)",
-                    borderRadius: 16,
-                    padding: 22,
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="flow-card-dark-rent">
                   <div
                     style={{
                       position: "absolute",
@@ -689,7 +409,7 @@ export function AppFlow() {
                   <div className="lgsec" style={{ color: "var(--g)", marginBottom: 14 }}>
                     REALIE · ESTIMATED RENT
                   </div>
-                  <div className="rentbig mb4">{fmtMoney(f.monthlyRent)}</div>
+                  <div className="flow-rent-big mb4">{fmtMoney(f.monthlyRent)}</div>
                   <div style={{ fontSize: 12, color: "var(--td)", marginBottom: 22 }}>
                     per month · long-term rental
                   </div>
@@ -862,8 +582,8 @@ export function AppFlow() {
               Download term sheet →
             </button>
           </div>
-          <div className="csplit" style={{ flex: 1, overflow: "hidden", borderRadius: 16, border: "1px solid var(--flow-border)" }}>
-            <div className="cleft">
+          <div className="flow-csplit">
+            <div className="flow-cleft">
               <div className="lgsec muted mb8">STEP 4 OF 8</div>
               <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: "var(--dk)", marginBottom: 3 }}>
                 Structure your DSCR loan.
@@ -966,7 +686,7 @@ export function AppFlow() {
                 </div>
               </div>
             </div>
-            <div className="cright">
+            <div className="flow-cright">
               <div className="lgsec" style={{ color: "var(--g)", marginBottom: 7 }}>
                 LIVE TERM SHEET
               </div>
@@ -1030,12 +750,12 @@ export function AppFlow() {
                 <div className="row ic gap8">
                   <span style={{ color: "var(--gh)", fontSize: 15 }}>✓</span>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--w)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#0f0e0c" }}>
                       {ts.qualifies
                         ? `DSCR qualifies at ${ts.dscr}x`
                         : "DSCR below 1.0 — No-Ratio option available"}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--td)" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280" }}>
                       Property cash flow covers the loan. No income docs needed.
                     </div>
                   </div>
@@ -1057,7 +777,7 @@ export function AppFlow() {
       {intel && ts && (
         <div className={`screen flowbg${f.screen === 5 ? " active" : ""}`}>
           <FlowChrome f={f}>
-          <div className="flow-content-scroll">
+          <div className="flow-main-scroll">
             <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
               <div className="row jb ic mb16">
                 <div className="badge gn">
@@ -1074,8 +794,8 @@ export function AppFlow() {
                 Download it, send it to your seller or partner. 60 seconds to a real term
                 sheet — this is the promise.
               </p>
-              <div className="bchrome mb28">
-                <div className="bbar">
+              <div className="flow-pdf-chrome mb28">
+                <div className="flow-pdf-bar">
                   <div className="bdts">
                     <div className="bdt" style={{ background: "#FF5F57" }} />
                     <div className="bdt" style={{ background: "#FFBD2E" }} />
@@ -1083,7 +803,7 @@ export function AppFlow() {
                   </div>
                   <div className="burl">{termSheetFilename(f.deal!.formattedAddress)}</div>
                 </div>
-                <div className="pdfbody">
+                <div className="flow-pdf-body">
                   <div className="row jb ic mb22">
                     <div className="row ic gap7">
                       <span className="dot" />
@@ -1091,7 +811,7 @@ export function AppFlow() {
                         vestednest
                       </span>
                     </div>
-                    <div className="badge wh">INDICATIVE TERM SHEET</div>
+                    <div className="flow-badge">INDICATIVE TERM SHEET</div>
                   </div>
                   <div className="serif" style={{ fontSize: 20, fontWeight: 700, marginBottom: 3 }}>
                     {f.deal!.formattedAddress}
@@ -1207,7 +927,7 @@ export function AppFlow() {
       {/* S6 Pre-Qualify */}
       <div className={`screen flowbg${f.screen === 6 ? " active" : ""}`}>
         <FlowChrome f={f}>
-        <div className="flow-content-scroll">
+        <div className="flow-main-scroll">
           <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
             <div className="row jb ic mb16">
               <div className="badge gn">
@@ -1283,14 +1003,16 @@ export function AppFlow() {
       {/* S7 Close Tracker */}
       <div className={`screen flowbg${f.screen === 7 ? " active" : ""}`}>
         <FlowChrome f={f}>
-        <div className="flow-content-scroll">
+        <div className="flow-main-scroll">
           <div className="flow-content-inner pgsm" style={{ paddingTop: 0, paddingLeft: 0, paddingRight: 0 }}>
             <div className="row jb ic mb16">
               <div className="badge gn">
                 <span className="bdot" />
                 Submitted · Under review
               </div>
-              <span style={{ fontSize: 12, color: "var(--flow-muted)" }}>Loan #{f.loanId}</span>
+              {f.loanId ? (
+                <span style={{ fontSize: 12, color: "var(--flow-muted)" }}>Loan #{f.loanId}</span>
+              ) : null}
             </div>
             <div className="lgsec muted mb12">STEP 7 OF 8 · CLOSE TRACKER</div>
             <div className="row jb ic mb8">
@@ -1357,23 +1079,16 @@ export function AppFlow() {
                 </div>
               </div>
             )}
-            <div
-              style={{
-                background: "var(--f)",
-                borderRadius: 22,
-                padding: 44,
-                textAlign: "center",
-              }}
-            >
-              <div className="serif" style={{ fontSize: 38, fontWeight: 800, color: "var(--w)", marginBottom: 11, lineHeight: 1.1 }}>
+            <div className="flow-close-cta">
+              <h3>
                 Drop the address.
                 <br />
-                <span style={{ color: "var(--g)" }}>We&apos;ll do the rest.</span>
-              </div>
-              <p style={{ fontSize: 15, color: "var(--td)", marginBottom: 26, maxWidth: 420, margin: "0 auto 26px" }}>
+                <em>We&apos;ll do the rest.</em>
+              </h3>
+              <p style={{ fontSize: 15, opacity: 0.85, marginBottom: 26, maxWidth: 420, margin: "0 auto 26px" }}>
                 Sixty seconds to a real indicative term sheet. Fourteen days to a closed loan.
               </p>
-              <button type="button" className="btn g" style={{ fontSize: 15, padding: "15px 30px" }} onClick={f.resetFlow}>
+              <button type="button" className="landing-final-cta-btn" onClick={f.resetFlow}>
                 Start a new deal →
               </button>
             </div>
@@ -1381,6 +1096,8 @@ export function AppFlow() {
         </div>
         </FlowChrome>
       </div>
+      </>
+      ) : null}
     </>
   );
 }

@@ -110,30 +110,32 @@ export function LogicManager() {
     rules?.stateMatrix.filter((s) => s.status === "restricted").length ?? 0;
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Active derived rules</h2>
+    <div className="admin-stack admin-stack--lg">
+      <section className="admin-card">
+        <h2 className="admin-card-title">Active derived rules</h2>
         {loading || !rules ? (
-          <p className="mt-4 text-sm text-black/50">Loading…</p>
+          <p className="admin-card-body admin-message">Loading…</p>
         ) : (
-          <div className="mt-4 space-y-4 text-sm text-black/80">
-            <ul className="list-disc space-y-1 pl-5">
+          <div className="admin-card-body admin-form-stack">
+            <ul className="admin-list" style={{ listStyle: "disc", paddingLeft: 20 }}>
               {rules.summary.map((line) => (
-                <li key={line}>{line}</li>
+                <li key={line} style={{ fontSize: "0.875rem", color: "#4a5565" }}>
+                  {line}
+                </li>
               ))}
             </ul>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg bg-vn-bg p-4">
-                <div className="text-xs text-black/50">Min DSCR</div>
-                <div className="text-xl font-semibold">{rules.dscr.minQualifyingDscr}</div>
+            <div className="admin-metric-grid">
+              <div className="admin-metric">
+                <div className="admin-metric-label">Min DSCR</div>
+                <div className="admin-metric-value">{rules.dscr.minQualifyingDscr}</div>
               </div>
-              <div className="rounded-lg bg-vn-bg p-4">
-                <div className="text-xs text-black/50">Base rate</div>
-                <div className="text-xl font-semibold">{rules.rateSettings.baseRate}%</div>
+              <div className="admin-metric">
+                <div className="admin-metric-label">Base rate</div>
+                <div className="admin-metric-value">{rules.rateSettings.baseRate}%</div>
               </div>
-              <div className="rounded-lg bg-vn-bg p-4">
-                <div className="text-xs text-black/50">Reserve months</div>
-                <div className="text-xl font-semibold">{rules.rateSettings.reserveMonths}</div>
+              <div className="admin-metric">
+                <div className="admin-metric-label">Reserve months</div>
+                <div className="admin-metric-value">{rules.rateSettings.reserveMonths}</div>
               </div>
             </div>
           </div>
@@ -141,25 +143,22 @@ export function LogicManager() {
       </section>
 
       {rules?.conflicts?.length ? (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-6">
-          <h2 className="text-lg font-semibold text-amber-900">
-            Conflict flags ({rules.conflicts.length})
-          </h2>
-          <ul className="mt-4 space-y-3">
+        <section className="admin-alert">
+          <h2 className="admin-alert-title">Conflict flags ({rules.conflicts.length})</h2>
+          <ul className="admin-list" style={{ marginTop: 16 }}>
             {rules.conflicts.map((c) => (
-              <li key={c.id} className="rounded-lg border border-amber-200 bg-white p-4 text-sm">
+              <li key={c.id} className="admin-alert-item">
                 <span
-                  className={
-                    c.severity === "error"
-                      ? "font-medium text-red-700"
-                      : "font-medium text-amber-800"
-                  }
+                  style={{
+                    fontWeight: 600,
+                    color: c.severity === "error" ? "#b91c1c" : "#92400e",
+                  }}
                 >
                   [{c.severity}] {c.category}
                 </span>
-                <p className="mt-1 text-black/70">{c.message}</p>
+                <p style={{ marginTop: 6, color: "#4a5565" }}>{c.message}</p>
                 {c.guidelineValue ? (
-                  <p className="mt-1 text-xs text-black/50">
+                  <p style={{ marginTop: 6, fontSize: "0.75rem", color: "#6b7280" }}>
                     Guidelines: {c.guidelineValue} · Rate sheet: {c.rateSheetValue}
                   </p>
                 ) : null}
@@ -169,15 +168,15 @@ export function LogicManager() {
         </section>
       ) : null}
 
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">
+      <section className="admin-card">
+        <h2 className="admin-card-title">
           State eligibility matrix ({blockedCount} blocked, {restrictedCount} restricted)
         </h2>
-        <p className="mt-1 text-xs text-black/50">
+        <p className="admin-card-sub">
           Click a state to toggle blocked/funded. NJ/NY attestation and VA LLC-only are preset.
         </p>
         {rules ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="admin-state-grid admin-card-body">
             {rules.stateMatrix.map((s) => (
               <button
                 key={s.state}
@@ -185,12 +184,12 @@ export function LogicManager() {
                 disabled={savingMatrix}
                 onClick={() => toggleStateBlocked(s.state)}
                 title={s.notes ?? s.status}
-                className={`rounded px-2 py-1 text-xs font-mono ${
+                className={`admin-state-pill${
                   s.status === "blocked"
-                    ? "bg-red-100 text-red-800"
+                    ? " admin-state-pill--blocked"
                     : s.status === "restricted"
-                      ? "bg-amber-100 text-amber-900"
-                      : "bg-green-50 text-green-800"
+                      ? " admin-state-pill--restricted"
+                      : " admin-state-pill--funded"
                 }`}
               >
                 {s.state}
@@ -200,24 +199,23 @@ export function LogicManager() {
             ))}
           </div>
         ) : null}
-        <p className="mt-2 text-xs text-black/40">* attestation required · † LLC only</p>
+        <p className="admin-card-sub" style={{ marginTop: 12 }}>
+          * attestation required · † LLC only
+        </p>
       </section>
 
-      <form
-        onSubmit={handleCreate}
-        className="rounded-xl border border-black/5 bg-white p-6 shadow-sm"
-      >
-        <h2 className="text-lg font-semibold text-black">Upload logic document</h2>
-        <div className="mt-4 space-y-4">
+      <form onSubmit={handleCreate} className="admin-card">
+        <h2 className="admin-card-title">Upload logic document</h2>
+        <div className="admin-form-stack admin-card-body">
           <input
-            className="w-full rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-input"
             placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
           />
           <select
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm"
+            className="admin-select"
             value={sourceType}
             onChange={(e) => setSourceType(e.target.value)}
           >
@@ -228,36 +226,33 @@ export function LogicManager() {
             <option value="prepay_licensing">Prepay licensing</option>
           </select>
           <textarea
-            className="w-full rounded-lg border border-black/10 px-4 py-2 font-mono text-sm"
+            className="admin-textarea"
             rows={6}
             placeholder="Paste sanitized extract (raw PDFs are not stored in git)…"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             required
           />
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <button
-            type="submit"
-            className="rounded-full bg-vn-green px-6 py-2 text-sm font-medium text-white"
-          >
+          {error ? <p className="secondary-error">{error}</p> : null}
+          <button type="submit" className="admin-btn-primary">
             Upload & sync rules
           </button>
         </div>
       </form>
 
-      <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-black">Logic documents ({docs.length})</h2>
+      <section className="admin-card">
+        <h2 className="admin-card-title">Logic documents ({docs.length})</h2>
         {docs.length === 0 ? (
-          <p className="mt-4 text-sm text-black/50">
+          <p className="admin-card-body admin-message">
             No logic documents yet. Run seed script or upload above.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-black/5">
+          <ul className="admin-list admin-list--divided admin-card-body">
             {docs.map((doc) => (
-              <li key={doc.id} className="flex items-center justify-between py-3">
+              <li key={doc.id}>
                 <div>
-                  <div className="font-medium text-black">{doc.title}</div>
-                  <div className="text-xs text-black/50">
+                  <div className="admin-list-item-title">{doc.title}</div>
+                  <div className="admin-list-item-meta">
                     {doc.source_type} · v{doc.version} ·{" "}
                     {new Date(doc.updated_at).toLocaleDateString()}
                   </div>
@@ -265,7 +260,7 @@ export function LogicManager() {
                 <button
                   type="button"
                   onClick={() => handleDelete(doc.id)}
-                  className="text-sm text-red-600 hover:underline"
+                  className="admin-btn-danger"
                 >
                   Delete
                 </button>

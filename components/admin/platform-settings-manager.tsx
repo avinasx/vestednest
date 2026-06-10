@@ -115,27 +115,32 @@ export function PlatformSettingsManager() {
   }
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-black/60">
+    <div className="admin-stack">
+      <p className="admin-section-lead">
         Integration credentials and runtime config. Saved values live in Supabase and apply to all
         server jobs. Only Supabase URL/keys and deploy secrets stay in{" "}
-        <code className="rounded bg-black/5 px-1 text-xs">.env</code>.
+        <code style={{ padding: "2px 6px", borderRadius: 4, background: "rgba(0,0,0,0.05)", fontSize: "0.75rem" }}>
+          .env
+        </code>
+        .
       </p>
       {Object.entries(byCategory).map(([cat, items]) => (
-        <section key={cat} className="rounded-xl border border-black/5 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-black">{CATEGORY_LABELS[cat] ?? cat}</h3>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <section key={cat} className="admin-card">
+          <h3 className="admin-card-title">{CATEGORY_LABELS[cat] ?? cat}</h3>
+          <div className="admin-settings-grid admin-card-body">
             {items.map((s) => (
-              <label key={s.key} className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-black">{s.label}</span>
+              <label key={s.key} className="admin-field">
+                <span className="admin-label">{s.label}</span>
                 {s.description ? (
-                  <span className="text-xs text-black/50">{s.description}</span>
+                  <span className="admin-card-sub" style={{ marginTop: 0 }}>
+                    {s.description}
+                  </span>
                 ) : null}
                 {s.type === "boolean" ? (
                   <select
                     value={drafts[s.key] ?? "false"}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
-                    className="rounded-lg border border-black/10 px-2 py-1.5"
+                    className="admin-select"
                   >
                     <option value="true">Yes</option>
                     <option value="false">No</option>
@@ -146,22 +151,22 @@ export function PlatformSettingsManager() {
                     value={drafts[s.key] ?? ""}
                     onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
                     autoComplete={s.isSecret ? "off" : undefined}
-                    className="rounded-lg border border-black/10 px-2 py-1.5 font-mono text-xs"
+                    className="admin-input admin-input--mono"
                   />
                 )}
-                <span className="text-[10px] text-black/40">Source: {s.source}</span>
+                <span className="admin-list-item-meta">Source: {s.source}</span>
               </label>
             ))}
           </div>
         </section>
       ))}
-      {message ? <p className="text-sm text-black/60">{message}</p> : null}
-      <div className="flex flex-wrap gap-2">
+      {message ? <p className="admin-message">{message}</p> : null}
+      <div className="admin-actions">
         <button
           type="button"
           disabled={seeding}
           onClick={() => void seedFromEnv(false)}
-          className="rounded-full border border-black/10 px-4 py-2 text-sm disabled:opacity-50"
+          className="admin-btn-secondary"
         >
           {seeding ? "Importing…" : "Import from .env"}
         </button>
@@ -169,7 +174,7 @@ export function PlatformSettingsManager() {
           type="button"
           disabled={saving}
           onClick={() => void save()}
-          className="rounded-full bg-vn-green px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="admin-btn-primary"
         >
           {saving ? "Saving…" : "Save integrations"}
         </button>

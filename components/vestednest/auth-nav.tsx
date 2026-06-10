@@ -16,17 +16,15 @@ export async function AuthNav() {
       "Account";
 
     return (
-      <div className="flex items-center gap-4">
-        <span className="hidden max-w-[140px] truncate text-sm text-black/70 sm:inline">
-          {name}
-        </span>
+      <div className="secondary-auth-user">
+        <span className="secondary-auth-name">{name}</span>
         <SignOutButton />
       </div>
     );
   }
 
   return (
-    <Link href="/login" className="hidden text-base text-black sm:inline">
+    <Link href="/login" className="landing-nav-signin">
       Sign in
     </Link>
   );

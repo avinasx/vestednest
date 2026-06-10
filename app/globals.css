@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@source "../app/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+
+@theme {
+  --color-vn-green: #24933e;
+  --color-vn-green-dark: #1d943b;
+  --color-vn-bg: #faf9f6;
+  --color-vn-surface: #f4f2f1;
+  --color-vn-muted: #555554;
+  --color-vn-ink: #0f0e0c;
+  --color-vn-heading: #111111;
+  --font-sans: var(--font-geist-sans), var(--font-inter), "Geist", sans-serif;
+}

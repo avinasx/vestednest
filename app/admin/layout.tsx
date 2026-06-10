@@ -1,8 +1,10 @@
-import { AuthNav } from "@/components/vestednest/auth-nav";
+import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { promoteSuperadminIfEligible } from "@/lib/auth/superadmin";
 import { getSessionProfile, isSuperadmin } from "@/lib/auth/session";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import "../admin.css";
 
 export default async function AdminLayout({
   children,
@@ -18,48 +20,34 @@ export default async function AdminLayout({
 
   if (!isSuperadmin(profile.role)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-vn-bg px-6">
-        <div className="max-w-md rounded-xl border border-black/5 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-xl font-semibold text-black">Access denied</h1>
-          <p className="mt-2 text-sm text-black/70">
-            Admin access requires a superadmin account. Contact your administrator
-            or sign in with an authorized email.
-          </p>
-          <Link href="/" className="mt-6 inline-block text-sm text-vn-green hover:underline">
-            ← Back to home
-          </Link>
+      <div className="admin-page">
+        <div className="admin-grid" aria-hidden />
+        <div className="admin-denied-wrap">
+          <div className="secondary-card secondary-auth-card">
+            <div className="secondary-badge secondary-badge--muted">
+              <span className="secondary-badge-dot" aria-hidden />
+              Access restricted
+            </div>
+            <h1 className="secondary-h1 secondary-h1--sm">Access denied</h1>
+            <p className="secondary-lead secondary-lead--sm">
+              Admin access requires a superadmin account. Contact your administrator or sign in
+              with an authorized email.
+            </p>
+            <Link href="/" className="secondary-back-link">
+              ← Back to home
+            </Link>
+          </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-vn-bg">
-      <header className="border-b border-black/5 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-8">
-            <Link href="/admin" className="text-lg font-semibold text-black">
-              Vested Nest Admin
-            </Link>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-black/70 hover:text-black">
-                Dashboard
-              </Link>
-              <Link href="/admin/logic" className="text-black/70 hover:text-black">
-                Logic Engine
-              </Link>
-              <Link href="/admin/knowledge" className="text-black/70 hover:text-black">
-                Knowledge Base
-              </Link>
-              <Link href="/admin/settings" className="text-black/70 hover:text-black">
-                Settings
-              </Link>
-            </nav>
-          </div>
-          <AuthNav />
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-    </div>
+    <AdminShell>
+      <div className="admin-mobile-nav">
+        <AdminNav mobile />
+      </div>
+      {children}
+    </AdminShell>
   );
 }

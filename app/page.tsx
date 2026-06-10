@@ -1,5 +1,5 @@
-import { AppFlow } from "@/components/flow/app-flow";
+import { HomeClient } from "./home-client";
 
 export default function Home() {
-  return <AppFlow />;
+  return <HomeClient />;
 }

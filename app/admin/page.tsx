@@ -1,3 +1,4 @@
+import { AdminPageHeader } from "@/components/admin/admin-shell";
 import Link from "next/link";
 import { getIntegrationStatus } from "@/lib/settings";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -22,66 +23,72 @@ export default async function AdminDashboardPage() {
     { label: "Loan Officers", value: lo.count ?? 0, href: "/admin/settings" },
   ];
 
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold text-black">Dashboard</h1>
-      <p className="mt-1 text-sm text-black/60">
-        Production overview for Vested Nest DSCR lending operations.
-      </p>
+  const integrations = [
+    { name: "Supabase", ok: integrationStatus.supabase },
+    { name: "Realie", ok: integrationStatus.realie },
+    { name: "RentCast", ok: integrationStatus.rentcast },
+    { name: "Gemini", ok: integrationStatus.gemini },
+    { name: "Supermemory", ok: integrationStatus.supermemory },
+    { name: "SendGrid", ok: integrationStatus.sendgrid },
+    { name: "Twilio", ok: integrationStatus.twilio },
+  ];
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  return (
+    <>
+      <AdminPageHeader
+        badge="Operations"
+        title="Dashboard"
+        lead="Production overview for Vested Nest DSCR lending operations."
+      />
+
+      <div className="admin-stat-grid">
         {stats.map((s) => (
-          <Link
-            key={s.label}
-            href={s.href}
-            className="rounded-xl border border-black/5 bg-white p-6 shadow-sm transition hover:border-vn-green/30"
-          >
-            <div className="text-3xl font-bold text-vn-green">{s.value}</div>
-            <div className="mt-1 text-sm text-black/70">{s.label}</div>
+          <Link key={s.label} href={s.href} className="admin-stat-card">
+            <div className="admin-stat-value">{s.value}</div>
+            <div className="admin-stat-label">{s.label}</div>
           </Link>
         ))}
       </div>
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-black">Quick actions</h2>
-          <ul className="mt-4 space-y-2 text-sm">
+      <div className="admin-grid-2" style={{ marginTop: 32 }}>
+        <section className="admin-card">
+          <h2 className="admin-card-title">Quick actions</h2>
+          <ul className="admin-list admin-list--links admin-card-body">
             <li>
-              <Link href="/admin/logic" className="text-vn-green hover:underline">
+              <Link href="/admin/logic" className="admin-list-link">
                 Review underwriting logic & state matrix →
               </Link>
             </li>
             <li>
-              <Link href="/admin/knowledge" className="text-vn-green hover:underline">
+              <Link href="/admin/knowledge" className="admin-list-link">
                 Add knowledge base document →
               </Link>
             </li>
             <li>
-              <Link href="/admin/settings" className="text-vn-green hover:underline">
+              <Link href="/admin/settings" className="admin-list-link">
                 Configure rate settings & funded states →
               </Link>
             </li>
             <li>
-              <Link href="/" className="text-vn-green hover:underline">
+              <Link href="/" className="admin-list-link">
                 View production app →
               </Link>
             </li>
           </ul>
         </section>
 
-        <section className="rounded-xl border border-black/5 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-black">System status</h2>
-          <ul className="mt-4 space-y-2 text-sm text-black/70">
-            <li>Supabase: {integrationStatus.supabase ? "✓ Connected" : "✗ Missing"}</li>
-            <li>Realie: {integrationStatus.realie ? "✓ Configured" : "○ Not set"}</li>
-            <li>RentCast: {integrationStatus.rentcast ? "✓ Configured" : "○ Not set"}</li>
-            <li>Gemini: {integrationStatus.gemini ? "✓ Configured" : "○ Not set"}</li>
-            <li>Supermemory: {integrationStatus.supermemory ? "✓ Configured" : "○ Not set"}</li>
-            <li>SendGrid: {integrationStatus.sendgrid ? "✓ Configured" : "○ Not set"}</li>
-            <li>Twilio: {integrationStatus.twilio ? "✓ Configured" : "○ Not set"}</li>
+        <section className="admin-card">
+          <h2 className="admin-card-title">System status</h2>
+          <ul className="admin-list admin-list--status admin-card-body">
+            {integrations.map((item) => (
+              <li key={item.name}>
+                {item.ok ? "✓" : "○"} {item.name}:{" "}
+                {item.ok ? "Connected" : "Not set"}
+              </li>
+            ))}
           </ul>
         </section>
       </div>
-    </div>
+    </>
   );
 }

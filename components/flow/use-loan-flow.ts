@@ -5,7 +5,7 @@ import { calculateTermSheet } from "@/lib/dscr";
 import { ADDRESS_KIND } from "@/lib/chat-interactions";
 import type { SelectableOption } from "@/lib/chat-interactions/types";
 import type { ChatMessage, CloseTrackerData, DealState } from "./types";
-import { getSessionId } from "./utils";
+import { createLoanReference, getSessionId } from "./utils";
 
 export function useLoanFlow() {
   const [screen, setScreen] = useState(0);
@@ -29,7 +29,7 @@ export function useLoanFlow() {
   const [advOpen, setAdvOpen] = useState(false);
   const [classicMode, setClassicMode] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
-  const [loanId] = useState(() => `VN-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [loanId, setLoanId] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [closeTracker, setCloseTracker] = useState<CloseTrackerData | null>(null);
@@ -38,6 +38,10 @@ export function useLoanFlow() {
   const chatInit = useRef(false);
   const loadInit = useRef(false);
   const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLoanId(createLoanReference());
+  }, []);
 
   const liveTermSheet = useMemo(() => {
     const price = purchasePrice || deal?.intel.arv || deal?.intel.marketValue || 0;
@@ -434,6 +438,7 @@ export function useLoanFlow() {
     setApplicationId(null);
     setCloseTracker(null);
     setEmailStatus(null);
+    setLoanId(createLoanReference());
     goTo(0);
   }, [goTo]);
 

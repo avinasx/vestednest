@@ -1,30 +1,35 @@
+import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { PlatformSettingsManager } from "@/components/admin/platform-settings-manager";
 import { SettingsManager } from "@/components/admin/settings-manager";
 
 export default function AdminSettingsPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-black">Settings</h1>
-      <p className="mt-1 text-sm text-black/60">
-        Integrations, rate engine, funded states, and loan officer roster.
-      </p>
-      <div className="mt-8 space-y-12">
-        <section>
-          <h2 className="text-lg font-semibold text-black">Integrations</h2>
-          <p className="mt-1 text-sm text-black/60">
+    <>
+      <AdminPageHeader
+        badge="Configuration"
+        title="Settings"
+        lead="Integrations, rate engine, funded states, and loan officer roster."
+      />
+
+      <section className="admin-settings-section">
+        <div>
+          <h2 className="admin-section-title">Integrations</h2>
+          <p className="admin-section-lead">
             API keys and runtime config stored in Supabase (overrides .env).
           </p>
-          <div className="mt-6">
-            <PlatformSettingsManager />
-          </div>
-        </section>
-        <section>
-          <h2 className="text-lg font-semibold text-black">Rate & eligibility</h2>
-          <div className="mt-6">
-            <SettingsManager />
-          </div>
-        </section>
-      </div>
-    </div>
+        </div>
+        <PlatformSettingsManager />
+      </section>
+
+      <section className="admin-settings-section">
+        <div>
+          <h2 className="admin-section-title">Rate & eligibility</h2>
+          <p className="admin-section-lead">
+            Base rate, funded states, environment health, and loan officer roster.
+          </p>
+        </div>
+        <SettingsManager />
+      </section>
+    </>
   );
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Geist, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import "./landing.css";
+import "./flow.css";
 import "./vestednest.css";
 
 const geistSans = Geist({
@@ -49,7 +51,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${fraunces.variable} ${dmSans.variable} ${inter.variable} ${plusJakarta.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden bg-vn-bg text-black">{children}</body>
     </html>
   );
 }

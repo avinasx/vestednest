@@ -122,17 +122,17 @@ export function AuthForm({ redirectTo = "/apply" }: { redirectTo?: string }) {
         type="button"
         onClick={signInWithGoogle}
         disabled={loading}
-        className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-black/10 bg-white text-base font-medium text-black disabled:opacity-60"
+        className="secondary-btn-google"
       >
         <GoogleIcon />
         {loading ? "Waiting for Google…" : "Continue with Google"}
       </button>
       {loading ? (
-        <p className="mt-3 text-xs text-black/50">
+        <p className="secondary-auth-hint">
           A Google sign-in window opened. Finish there, or close it to cancel.
         </p>
       ) : null}
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="secondary-error">{error}</p> : null}
     </div>
   );
 }

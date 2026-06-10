@@ -4,6 +4,10 @@ export function fmtMoney(n: number) {
   return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+export function createLoanReference() {
+  return `VN-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
 export function getSessionId() {
   if (typeof window === "undefined") return "ssr";
   const key = "vn-session";
