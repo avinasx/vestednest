@@ -20,6 +20,13 @@
   color: #1d943b;
 }
 
+.vn-logo-bird {
+  display: block;
+  width: 28px;
+  height: auto;
+  flex-shrink: 0;
+}
+
 /* ============ Nav ============ */
 .app-top-nav {
   position: fixed;
@@ -266,10 +273,8 @@
   margin: 44px auto 0;
   display: block;
   width: 100px;
-  height: 96px;
-  background: #24933e;
-  -webkit-mask: url("/landing/bird-small.png") center / contain no-repeat;
-  mask: url("/landing/bird-small.png") center / contain no-repeat;
+  height: auto;
+  object-fit: contain;
 }
 
 .landing-fly-cta {
@@ -593,10 +598,8 @@
   left: 28px;
   top: -130px;
   width: 146px;
-  height: 140px;
-  background: #24933e;
-  -webkit-mask: url("/landing/nestai-bird.png") center / contain no-repeat;
-  mask: url("/landing/nestai-bird.png") center / contain no-repeat;
+  height: auto;
+  object-fit: contain;
   pointer-events: none;
 }
 
@@ -821,9 +824,15 @@
 /* ============ Process section ============ */
 .landing-process-section {
   position: relative;
-  overflow: hidden;
+  /* overflow must stay visible so sticky + scroll-driven frames work */
+  overflow: visible;
   background: #f4f2f1;
-  padding: 60px 0 80px;
+}
+
+.landing-process-scroll {
+  /* scroll budget per transition (not full viewport per step) */
+  --process-segment-vh: 24;
+  padding: 0;
 }
 
 .landing-process-bg {
@@ -835,6 +844,7 @@
   object-fit: cover;
   mix-blend-mode: darken;
   pointer-events: none;
+  clip-path: inset(0 -200px 0 0);
 }
 
 .landing-process {
@@ -871,7 +881,8 @@
   margin-top: 56px;
   border: 1px solid rgba(36, 147, 62, 0.2);
   background: #fefefd;
-  padding: 20px;
+  /* padding lives on panels — absolute children fill the padding box */
+  padding: 0;
 }
 
 .landing-process-card::before,
@@ -1039,13 +1050,220 @@
   color: #24933e;
 }
 
-.landing-process-step p {
+.landing-process-step-body {
   margin-top: 9px;
   max-width: 586px;
   font-size: 0.875rem;
   font-weight: 300;
   line-height: 1.4;
   color: #555554;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    opacity 0.35s ease,
+    max-height 0.35s ease,
+    margin-top 0.35s ease;
+}
+
+.landing-process-step-body--visible {
+  max-height: 120px;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-process-step-body,
+  .landing-process-card-panel {
+    transition: none;
+  }
+}
+
+/* Scroll-driven process animation */
+.landing-process-scroll-track {
+  /* sticky viewport + (segments − 1) transition bands — avoids N×vh dead scroll below */
+  height: calc(
+    100vh + (var(--process-scroll-segments, 7) - 1) * var(--process-segment-vh, 24) * 1vh
+  );
+}
+
+.landing-process-scroll-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 60px 0 24px;
+}
+
+.landing-process-card--animated {
+  /* absolute panels don't expand height — reserve tallest step */
+  min-height: 380px;
+}
+
+.landing-process-card-panel {
+  position: absolute;
+  /* Figma card content inset: 20px from each edge (node 1:2125 → 1:2130) */
+  inset: 20px;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+.landing-process-card-panel--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.landing-process-card-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 40px;
+  margin-top: 22px;
+}
+
+.landing-process-card-stat-label {
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: #000;
+}
+
+.landing-process-card-stat-value {
+  margin-top: 4px;
+  font-size: 2rem;
+  font-weight: 600;
+  color: #25933e;
+}
+
+.landing-process-card-sheet {
+  margin-top: 22px;
+  border: 1px solid #24933e;
+  border-radius: 8px;
+  background: rgba(36, 147, 62, 0.1);
+  padding: 20px 18px;
+}
+
+.landing-process-card-sheet-address {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #24933e;
+}
+
+.landing-process-card-sheet-address img {
+  width: 21px;
+  height: 21px;
+}
+
+.landing-process-card-sheet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.landing-process-card-sheet-tags span {
+  border-radius: 22px;
+  background: #fefefd;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  color: #000;
+}
+
+.landing-process-card-footnote {
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: #555554;
+}
+
+.landing-process-card-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+  list-style: none;
+  padding: 0;
+}
+
+.landing-process-card-docs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: #000;
+}
+
+.landing-process-card-docs li img {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.landing-process-card-docs--muted {
+  color: #6f6f6f;
+}
+
+.landing-process-card-close {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+@media (min-width: 520px) {
+  .landing-process-card-close {
+    grid-template-columns: 180px 1fr;
+    align-items: start;
+    gap: 24px;
+  }
+}
+
+.landing-process-card-close-highlight {
+  border: 1px solid #24933e;
+  border-radius: 8px;
+  background: rgba(36, 147, 62, 0.1);
+  padding: 18px 16px;
+  min-height: 95px;
+}
+
+.landing-process-card-close-days {
+  font-size: 2.25rem;
+  font-weight: 600;
+  color: #25933e;
+  line-height: 1.2;
+}
+
+.landing-process-card-close-caption {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: #000;
+}
+
+.landing-process-card-close-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.landing-process-card-close-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: #000;
+}
+
+.landing-process-card-close-list li img {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 /* ============ Funded pipeline ============ */
@@ -1279,6 +1497,8 @@
 /* Calculator panel — dotted corner markers like Figma */
 .landing-calc {
   position: relative;
+  border: 1px solid rgba(36, 147, 62, 0.2);
+  background: #fefefd;
   padding: 42px 30px;
 }
 

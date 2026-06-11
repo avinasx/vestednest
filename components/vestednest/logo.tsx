@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+
 export function VestedNestLogo({
   className = "",
   variant = "dark",
@@ -5,25 +7,18 @@ export function VestedNestLogo({
   className?: string;
   variant?: "dark" | "light";
 }) {
-  const fill = variant === "light" ? "#ffffff" : "#24933e";
   const textClass = variant === "light" ? "vn-logo-text text-white" : "text-black";
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg
-        className="vn-logo-bird"
-        width="28"
-        height="24"
-        viewBox="0 0 28 24"
-        fill="none"
+      <img
+        src="/landing/bird-icon.png"
+        alt=""
         aria-hidden
-      >
-        <path
-          d="M4 18C8 8 12 4 18 3C14 10 12 16 11 21C9 17 6 14 4 18Z"
-          fill={fill}
-        />
-        <circle className="vn-logo-bird" cx="9" cy="9" r="1.2" fill={fill} />
-      </svg>
+        className={`vn-logo-bird${variant === "light" ? " vn-logo-bird--light" : ""}`}
+        width={28}
+        height={27}
+      />
       <span className={`vn-logo-text text-[22px] font-normal tracking-tight lowercase ${textClass}`}>
         vestednest
       </span>

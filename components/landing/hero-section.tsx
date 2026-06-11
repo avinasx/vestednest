@@ -37,7 +37,7 @@ export function HeroSection({ onStart }: HeroSectionProps) {
               </div>
             ))}
           </div>
-          <span className="landing-hero-bird" aria-hidden />
+          <img src="/landing/bird-hero.png" alt="" className="landing-hero-bird" aria-hidden />
           <div>
             <button type="button" className="landing-fly-cta" onClick={onStart}>
               Close it on the Fly!

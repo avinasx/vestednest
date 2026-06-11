@@ -239,9 +239,8 @@
   color: #fff;
 }
 
-.flow-chat-hd .vn-logo-bird path,
-.flow-chat-hd .vn-logo-bird circle {
-  fill: #fff;
+.flow-chat-hd .vn-logo-bird {
+  filter: brightness(0) invert(1);
 }
 
 .flow-chat-bd {

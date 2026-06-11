@@ -35,7 +35,7 @@ export function HeroAiBar({
 
   return (
     <div className="landing-aibar-zone" id="nest-ai-bar">
-      <span className="landing-aibar-bird" aria-hidden />
+      <img src="/landing/nestai-bird.png" alt="" className="landing-aibar-bird" aria-hidden />
       <button type="button" className="landing-aibar-tab" onClick={submit}>
         <svg viewBox="0 0 20 20" fill="none" aria-hidden>
           <path d="m12.5 5-5 5 5 5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
