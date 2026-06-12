@@ -29,9 +29,8 @@ const socials = [
 ];
 
 const contact = [
-  { icon: "/landing/icon-mail.svg", text: "connect@vestednest.com" },
-  { icon: "/landing/icon-phone.svg", text: "(833) 888-LOAN" },
-  { icon: "/landing/icon-calendar-sm.svg", text: "Mon–Fri • 9AM–6PM EST" },
+  { icon: "/landing/icon-mail.svg", text: "viraj@theagentfactory.io" },
+  { icon: "/landing/icon-phone.svg", text: "+1 (516) 661-9018" },
 ];
 
 export function Footer() {
@@ -53,7 +52,7 @@ export function Footer() {
                 </p>
               ))}
             </div>
-            <div className="landing-footer-socials">
+            {/* <div className="landing-footer-socials">
               {socials.map((s) => (
                 <a
                   key={s.label}
@@ -66,7 +65,7 @@ export function Footer() {
                   <img src={s.icon} alt="" aria-hidden />
                 </a>
               ))}
-            </div>
+            </div> */}
           </div>
           <div className="landing-footer-cols">
             {columns.map((col) => (
