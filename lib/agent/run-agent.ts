@@ -131,7 +131,7 @@ function parseStructuredToolOutput(output: unknown): NestResponse | null {
 }
 
 function emitAssistantText(
-  controller: ReadableStreamDefaultController<UIMessageChunk>,
+  controller: { enqueue: (chunk: UIMessageChunk) => void },
   text: string,
   textEmitted: TextEmittedFlag,
 ) {
