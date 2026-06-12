@@ -60,7 +60,6 @@ const DEALS = [
 
 export function FundedPipelineSection() {
   const [activeTab, setActiveTab] = useState("All");
-  const deals = DEALS.filter((d) => activeTab === "All" || d.filters.includes(activeTab));
 
   return (
     <section className="landing-pipeline">
@@ -88,11 +87,13 @@ export function FundedPipelineSection() {
           </div>
         </div>
         <div className="landing-deal-grid">
-          {deals.map((deal) => (
-            <article
-              key={`${deal.city}-${deal.tag}`}
-              className={`landing-deal-card${deal.featured ? " landing-deal-card--featured" : ""}`}
-            >
+          {DEALS.map((deal) => {
+            const isHighlighted = activeTab === "All" ? deal.featured : deal.filters.includes(activeTab);
+            return (
+              <article
+                key={`${deal.city}-${deal.tag}`}
+                className={`landing-deal-card${isHighlighted ? " landing-deal-card--featured" : ""}`}
+              >
               <p className="landing-deal-tag">{deal.tag}</p>
               <p className="landing-deal-city">{deal.city}</p>
               {deal.amount ? (
@@ -117,7 +118,8 @@ export function FundedPipelineSection() {
                 <p className="landing-deal-caption">{deal.caption}</p>
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

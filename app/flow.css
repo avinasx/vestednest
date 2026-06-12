@@ -235,6 +235,15 @@
   border-radius: 15px 15px 0 0;
 }
 
+.flow-chat-logo-home {
+  display: inline-flex;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
 .flow-chat-hd .vn-logo-text {
   color: #fff;
 }
@@ -276,6 +285,22 @@
   align-items: flex-start;
 }
 
+.flow-msg > div:not(.flow-avatar) {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-msg.ai > div:not(.flow-avatar) {
+  align-items: flex-start;
+}
+
+.flow-msg.u > div:not(.flow-avatar) {
+  align-items: flex-end;
+}
+
 .flow-msg.u {
   flex-direction: row-reverse;
 }
@@ -305,11 +330,14 @@
 }
 
 .flow-msg .cb {
-  max-width: 82%;
+  max-width: 100%;
+  width: fit-content;
   padding: 12px 16px;
   border-radius: 14px;
   font-size: 0.9rem;
   line-height: 1.55;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .flow-msg.ai .cb {
@@ -714,6 +742,8 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.15s ease;
+  text-decoration: none;
+  padding: 0;
 }
 
 .flow-help-fab:hover {

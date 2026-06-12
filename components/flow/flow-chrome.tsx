@@ -58,8 +58,20 @@ export function FlowChrome({ f, children }: { f: LoanFlow; children: ReactNode }
         <FlowSidebar f={f} />
         <div className="flow-main">{children}</div>
       </div>
-      <button type="button" className="flow-help-fab" aria-label="Help">
-        ?
+      <button
+        type="button"
+        className="flow-help-fab"
+        aria-label="Close and return home"
+        onClick={() => f.goTo(0)}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+          <path
+            d="M5 5l10 10M15 5L5 15"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
     </div>
   );

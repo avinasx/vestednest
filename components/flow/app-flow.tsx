@@ -119,7 +119,21 @@ export function AppFlow() {
   return (
     <>
       <div className="app-top-nav">
-        <LandingNav onGetPreQualified={() => f.startFromHero()} />
+        <LandingNav
+          onHomeNavigate={() => f.goTo(0)}
+          onGetPreQualified={() => f.startFromHero()}
+          onSectionNavigate={(sectionId) => {
+            const scrollToSection = () => {
+              document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+            };
+            if (f.screen !== 0) {
+              f.goTo(0);
+              requestAnimationFrame(scrollToSection);
+            } else {
+              scrollToSection();
+            }
+          }}
+        />
       </div>
 
       {/* S0 Landing page (Figma v1) */}
@@ -134,7 +148,14 @@ export function AppFlow() {
         <FlowChrome f={f}>
           <div className="flow-chat-panel">
             <div className="flow-chat-hd">
-              <VestedNestLogo variant="light" />
+              <button
+                type="button"
+                className="flow-chat-logo-home"
+                onClick={() => f.goTo(0)}
+                aria-label="Vested Nest home"
+              >
+                <VestedNestLogo variant="light" />
+              </button>
             </div>
             <div className="flow-chat-bd">
               <div className="flow-clog" ref={f.logRef}>

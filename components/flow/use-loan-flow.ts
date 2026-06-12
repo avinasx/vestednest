@@ -165,7 +165,7 @@ export function useLoanFlow() {
           })
         : adapted;
 
-    if (screen === 1 && chatInit.current) {
+    if (screen >= 1) {
       return [GREETING, ...withFlowHints];
     }
     return withFlowHints;

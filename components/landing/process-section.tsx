@@ -253,6 +253,7 @@ export function ProcessSection() {
 
   return (
     <section
+      id="process"
       className="landing-process-section landing-process-scroll"
       aria-label="Process"
       style={{ ["--process-scroll-segments" as string]: SCROLL_SEGMENTS }}

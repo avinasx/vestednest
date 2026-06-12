@@ -35,7 +35,7 @@ const CARDS = [
 
 export function WhyDscrSection() {
   return (
-    <section className="landing-section" style={{ background: "#f4f2f1" }}>
+    <section id="why-dscr" className="landing-section" style={{ background: "#f4f2f1" }}>
       <div className="landing-section-inner">
         <div className="text-center">
           <SectionLabel>Why DSCR is Different</SectionLabel>

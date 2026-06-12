@@ -26,6 +26,62 @@ const ROW_ONE = [
     avatar: "/landing/avatar-jennifer.png",
     muted: false,
   },
+  {
+    name: "Carlos V.",
+    meta: "Miami, FL — 12-unit multi-family acquisition",
+    quote:
+      "Traditional banks took months to underwrite the rent roll. We had clear-to-close in 14 days and secured the asset before the seller walked.",
+    avatar: "",
+    muted: true,
+  },
+  {
+    name: "Rachel K.",
+    meta: "Dallas, TX — Short-term rental (STR) portfolio",
+    quote:
+      "Most lenders run scared from Airbnb revenue. Vested Nest used AirDNA data and locked in a rate that made the cash flow work beautifully.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "David H.",
+    meta: "Columbus, OH — BRRRR strategy",
+    quote:
+      "Fastest draw process I've experienced. We rehabbed a duplex, leased it, and refi'd into a 30-year fixed DSCR without skipping a beat.",
+    avatar: "",
+    muted: true,
+  },
+  {
+    name: "Anita P.",
+    meta: "Charlotte, NC — First-time commercial property",
+    quote:
+      "I thought moving from residential to an 8-plex would be a nightmare. They held my hand through the LLC structuring and closed exactly on time.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Greg S.",
+    meta: "Las Vegas, NV — 1031 Exchange",
+    quote:
+      "We were up against our 1031 timeline and our original lender ghosted. These guys stepped in, funded the bridge loan in 9 days, and saved the deal.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Tyler M.",
+    meta: "Indianapolis, IN — Out-of-state investor",
+    quote:
+      "Investing from California into the Midwest requires a lender who understands the local yield. They got it instantly. Smooth virtual closing.",
+    avatar: "",
+    muted: true,
+  },
+  {
+    name: "Elena R.",
+    meta: "Denver, CO — Cash-out refinance",
+    quote:
+      "Unlocked $300k of equity from our stabilised portfolio to fund our next two down payments. No tax returns required. Pure efficiency.",
+    avatar: "",
+    muted: false,
+  },
 ];
 
 const ROW_TWO = [
@@ -38,11 +94,11 @@ const ROW_TWO = [
     muted: true,
   },
   {
-    name: "Jennifer L.",
-    meta: "Nashville, TN — 5-door portfolio, BIFI add-on",
+    name: "Michael B.",
+    meta: "San Antonio, TX — 20-door portfolio consolidation",
     quote:
-      "No W2. No DTI. The LLC owned the property, the rental income covered everything. Exactly what a DSCR lender should be.",
-    avatar: "/landing/avatar-jennifer.png",
+      "We had five different loans maturing at different times. They wrapped everything into a single portfolio loan with a blended rate that beat the street.",
+    avatar: "",
     muted: false,
   },
   {
@@ -53,13 +109,107 @@ const ROW_TWO = [
     avatar: "/landing/avatar-lkim.png",
     muted: true,
   },
+  {
+    name: "Jonathan F.",
+    meta: "Memphis, TN — Turnkey rentals",
+    quote:
+      "I buy 2-3 turnkey properties a quarter. Vested Nest is the only lender I use now. Send the contract, they send the term sheet. Done.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Sarah W.",
+    meta: "Raleigh, NC — Ground-up construction to DSCR",
+    quote:
+      "The transition from construction loan to permanent DSCR was seamless. We didn't have to scramble for a new appraisal or go through underwriting twice.",
+    avatar: "",
+    muted: true,
+  },
+  {
+    name: "Omar J.",
+    meta: "Detroit, MI — Fix and Flip",
+    quote:
+      "Got a 90% LTC / 100% Rehab loan with a rate that actually left room for profit. The draw requests were funded within 48 hours every time.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Amanda D.",
+    meta: "Kansas City, MO — 5-unit value-add",
+    quote:
+      "We bought a mismanaged 5-plex. Used their bridge loan to acquire and renovate, then rolled into a 30-year fixed once rents were stabilized. Masterclass execution.",
+    avatar: "",
+    muted: true,
+  },
+  {
+    name: "Brian C.",
+    meta: "Houston, TX — Foreign National Investor",
+    quote:
+      "As a non-US resident, financing is usually incredibly difficult. They mapped out the entire DSCR process for my US LLC and made it effortless.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Stephanie M.",
+    meta: "Orlando, FL — Vacation rental investment",
+    quote:
+      "The property had no long-term lease, but the projected short-term rental income was strong. They underwrote the deal based on the asset's potential, not my W2.",
+    avatar: "",
+    muted: false,
+  },
+  {
+    name: "Victor T.",
+    meta: "Cleveland, OH — 8-unit mixed-use",
+    quote:
+      "We had a retail space on the bottom and apartments on top. A lot of lenders won't touch mixed-use, but Vested Nest understood the asset class and funded it in three weeks.",
+    avatar: "",
+    muted: true,
+  },
 ];
 
-function TestimonialCard({
-  t,
+type Testimonial = {
+  name: string;
+  meta: string;
+  quote: string;
+  avatar: string;
+  muted: boolean;
+};
+
+function TestimonialMarqueeRow({
+  items,
+  direction,
+  offset,
 }: {
-  t: { name: string; meta: string; quote: string; avatar: string; muted: boolean };
+  items: Testimonial[];
+  direction: "rtl" | "ltr";
+  offset?: boolean;
 }) {
+  const trackClass =
+    direction === "rtl"
+      ? "landing-testimonial-marquee__track landing-testimonial-marquee__track--rtl"
+      : "landing-testimonial-marquee__track landing-testimonial-marquee__track--ltr";
+
+  const renderGroup = (suffix: string, hidden: boolean) => (
+    <div className="landing-testimonial-marquee__group" aria-hidden={hidden || undefined}>
+      {items.map((t) => (
+        <TestimonialCard key={`${t.name}${suffix}`} t={t} />
+      ))}
+    </div>
+  );
+
+  return (
+    <div
+      className={`landing-testimonial-marquee${offset ? " landing-testimonial-marquee--offset" : ""}`}
+    >
+      <div className={trackClass}>
+        {renderGroup("-a", false)}
+        {renderGroup("-b", true)}
+      </div>
+    </div>
+  );
+}
+
+function TestimonialCard({ t }: { t: Testimonial }) {
   const initials = t.name
     .split(/\s+/)
     .map((w) => w[0])
@@ -96,16 +246,8 @@ export function TestimonialsSection() {
         <h2 className="landing-testimonials-title">Testimonials</h2>
       </div>
       <div className="landing-testimonial-rows">
-        <div className="landing-testimonial-row">
-          {ROW_ONE.map((t) => (
-            <TestimonialCard key={`${t.name}-1`} t={t} />
-          ))}
-        </div>
-        <div className="landing-testimonial-row landing-testimonial-row--offset">
-          {ROW_TWO.map((t) => (
-            <TestimonialCard key={`${t.name}-2`} t={t} />
-          ))}
-        </div>
+        <TestimonialMarqueeRow items={ROW_ONE} direction="rtl" />
+        <TestimonialMarqueeRow items={ROW_TWO} direction="ltr" offset />
       </div>
     </section>
   );
