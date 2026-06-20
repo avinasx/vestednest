@@ -1,11 +1,13 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import { useState } from "react";
 import {
   PRIVACY_NAV,
   PRIVACY_SECTIONS,
   type PrivacyBlock,
 } from "@/lib/static-pages/privacy-content";
+import { PRIVACY_NAV_ICONS } from "../privacy-nav-icons";
 
 function renderBlock(block: PrivacyBlock, index: number) {
   switch (block.type) {
@@ -58,17 +60,27 @@ export function PrivacyContentSection() {
     <section className="privacy-page-body">
       <div className="privacy-page-inner privacy-page-layout">
         <nav className="privacy-page-sidebar" aria-label="Policy sections">
-          {PRIVACY_NAV.map((item) => (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              className={`privacy-page-nav-item${activeId === item.id ? " is-active" : ""}`}
-              onClick={() => setActiveId(item.id)}
-            >
-              <span className="privacy-page-nav-rail" aria-hidden />
-              <span className="privacy-page-nav-label">{item.label}</span>
-            </a>
-          ))}
+          {PRIVACY_NAV.map((item) => {
+            const isActive = activeId === item.id;
+            const icon = PRIVACY_NAV_ICONS[item.id];
+
+            return (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className={`privacy-page-nav-item${isActive ? " is-active" : ""}`}
+                onClick={() => setActiveId(item.id)}
+              >
+                {isActive ? <span className="privacy-page-nav-rail" aria-hidden /> : null}
+                <span className="privacy-page-nav-content">
+                  {icon ? (
+                    <img src={icon} alt="" aria-hidden className="privacy-page-nav-icon" />
+                  ) : null}
+                  <span className="privacy-page-nav-label">{item.label}</span>
+                </span>
+              </a>
+            );
+          })}
         </nav>
 
         <div className="privacy-page-main">
