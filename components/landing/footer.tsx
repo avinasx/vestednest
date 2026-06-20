@@ -34,7 +34,7 @@ const columns = [
 const contact = [
   { icon: "/landing/icon-mail.svg", text: "viraj@theagentfactory.io" },
   { icon: "/landing/icon-phone.svg", text: "+1 (516) 661-9018" },
-  { icon: "/landing/icon-calendar-sm.svg", text: "Mon–Fri • 9AM–6PM EST" },
+  // { icon: "/landing/icon-calendar-sm.svg", text: "Mon–Fri • 9AM–6PM EST" },
 ];
 
 // Social links — re-enable when profiles are ready
