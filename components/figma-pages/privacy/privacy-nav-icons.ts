@@ -8,5 +8,5 @@ export const PRIVACY_NAV_ICONS: Record<string, string> = {
   retention: "/figma-assets/imgCalendar02.svg",
   "your-rights": "/figma-assets/imgCheckmarkCircle02.svg",
   security: "/figma-assets/imgTick02.svg",
-  contact: "/figma-assets/imgMail01.svg",
+  contact: "/figma-assets/imgMail01Nav.svg",
 };
