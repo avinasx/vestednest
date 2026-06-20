@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
+
 const LOGOS = [
-  { name: "NATIONAL MORTGAGE NEWS", style: { fontWeight: 800, letterSpacing: "0.5px" } },
-  { name: "HousingWire", style: { fontWeight: 700, fontStyle: "italic" as const } },
-  { name: "Forbes", style: { fontFamily: "Georgia, serif", fontWeight: 700 } },
-  { name: "BiggerPockets", style: { fontWeight: 800 } },
-  { name: "TechCrunch", style: { fontWeight: 900, letterSpacing: "-0.5px" } },
+  { src: "/landing/press/biggerpockets.png", alt: "BiggerPockets" },
+  { src: "/landing/press/bloomberg.png", alt: "Bloomberg" },
+  { src: "/landing/press/inman.png", alt: "Inman" },
+  { src: "/landing/press/housingwire.png", alt: "HousingWire" },
+  { src: "/landing/press/therealdeal.png", alt: "The Real Deal" },
 ];
 
 export function PressLogos() {
@@ -11,9 +13,7 @@ export function PressLogos() {
     <section className="landing-press" aria-label="Press logos">
       <div className="landing-press-inner">
         {LOGOS.map((logo) => (
-          <span key={logo.name} className="landing-press-logo" style={logo.style}>
-            {logo.name}
-          </span>
+          <img key={logo.alt} src={logo.src} alt={logo.alt} className="landing-press-logo-img" />
         ))}
       </div>
     </section>

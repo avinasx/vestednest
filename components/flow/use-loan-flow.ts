@@ -47,6 +47,8 @@ export function useLoanFlow() {
   const [progressText, setProgressText] = useState<string | null>(null);
 
   const chatInit = useRef(false);
+  /** Message to auto-send when opening chat before heroInput state has flushed (e.g. cross-page launch). */
+  const pendingHeroSend = useRef<string | null>(null);
   const loadInit = useRef(false);
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -447,7 +449,12 @@ export function useLoanFlow() {
   const startFromHero = useCallback(
     (value?: string) => {
       const v = (value ?? heroInput).trim();
-      if (v) setHeroInput(v);
+      if (v) {
+        setHeroInput(v);
+        pendingHeroSend.current = v;
+      } else {
+        pendingHeroSend.current = null;
+      }
       chatInit.current = false;
       goTo(1);
     },
@@ -531,6 +538,7 @@ export function useLoanFlow() {
 
   const resetFlow = useCallback(() => {
     chatInit.current = false;
+    pendingHeroSend.current = null;
     loadInit.current = false;
     setDeal(null);
     setUiMessages([]);
@@ -548,8 +556,10 @@ export function useLoanFlow() {
   useEffect(() => {
     if (screen !== 1 || chatInit.current) return;
     chatInit.current = true;
-    if (heroInput.trim()) {
-      setTimeout(() => sendChat(heroInput.trim()), 400);
+    const msg = pendingHeroSend.current ?? heroInput.trim();
+    pendingHeroSend.current = null;
+    if (msg) {
+      setTimeout(() => sendChat(msg), 400);
     }
   }, [screen, heroInput, sendChat]);
 

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Geist, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "./landing.css";
+import "./product-pages.css";
+import "./figma-ui.css";
+import "./static-pages.css";
 import "./flow.css";
 import "./vestednest.css";
 

@@ -1,0 +1,73 @@
+/* Figma-exported static pages (1440px design canvas) */
+
+.figma-page-shell {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f4f2f1;
+  color: #0f0e0c;
+  font-family: var(--font-geist-sans), "Geist", system-ui, sans-serif;
+  -webkit-overflow-scrolling: touch;
+}
+
+.figma-page-main {
+  /* Header is sticky (in document flow) — no extra top offset */
+  padding-top: 0;
+}
+
+.figma-page-viewport {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.figma-page-canvas {
+  position: relative;
+  width: 1440px;
+  max-width: none;
+  margin: 0 auto;
+}
+
+.figma-page-canvas img {
+  max-width: none;
+}
+
+.figma-page-canvas [class*="font-['Geist"] {
+  font-family: var(--font-geist-sans), "Geist", sans-serif;
+}
+
+.figma-page-canvas [class*="font-['Georgia"] {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+/* Figma export uses fake family names like Geist:Light — map to weights */
+.figma-page-canvas [class*="Geist:Light"] {
+  font-weight: 300;
+}
+
+.figma-page-canvas [class*="Geist:Regular"] {
+  font-weight: 400;
+}
+
+.figma-page-canvas [class*="Geist:Medium"] {
+  font-weight: 500;
+}
+
+.figma-page-canvas [class*="Geist:SemiBold"] {
+  font-weight: 600;
+}
+
+.figma-page-canvas [class*="Geist:Bold"] {
+  font-weight: 700;
+}
+
+.figma-page-canvas [class*="Georgia:Bold"] {
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Divider lines exported as zero-height img wrappers */
+.figma-page-canvas .h-0 img {
+  height: 1px;
+  width: 100%;
+  object-fit: cover;
+}

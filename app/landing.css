@@ -94,6 +94,17 @@
   color: #000;
 }
 
+.landing-nav-links a.landing-nav-link--active,
+.landing-nav-links .landing-nav-link--active {
+  color: #24933e;
+  font-weight: 500;
+}
+
+.landing-nav-links a.landing-nav-link--active:hover,
+.landing-nav-links .landing-nav-link--active:hover {
+  color: #24933e;
+}
+
 .landing-nav-link--disabled {
   color: #9ca3af !important;
   cursor: not-allowed;
@@ -188,22 +199,16 @@
     1185px 432px;
 }
 
-/* Soft green glow descending from the top */
-.landing-hero-glow {
+/* Dashed green arc from Figma Ellipse 36352 (Group 2147235534) */
+.landing-hero-arc {
   position: absolute;
   left: 50%;
-  top: -490px;
-  width: 1332px;
-  height: 792px;
+  top: -80px;
+  width: min(1332px, 100vw);
+  height: auto;
   transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(36, 147, 62, 0.34) 0%,
-    rgba(36, 147, 62, 0.14) 45%,
-    rgba(36, 147, 62, 0) 72%
-  );
-  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .landing-hero-inner {
@@ -338,12 +343,13 @@
   padding: 0 1.5rem;
 }
 
-.landing-press-logo {
-  font-size: 1.2rem;
-  line-height: 27px;
-  color: #6a6a66;
-  opacity: 0.75;
-  white-space: nowrap;
+.landing-press-logo-img {
+  display: block;
+  height: 27px;
+  width: auto;
+  max-width: 186px;
+  object-fit: contain;
+  opacity: 0.72;
 }
 
 /* ============ Section shell ============ */
@@ -1298,7 +1304,7 @@
 }
 
 .landing-tab {
-  border: none;
+  border: 1px solid rgba(125, 125, 125, 0.13);
   border-radius: 1000px;
   background: #fff;
   padding: 10px 20px;
@@ -1310,6 +1316,7 @@
 }
 
 .landing-tab--active {
+  border-color: #1d943b;
   background: #1d943b;
   color: #fff;
 }

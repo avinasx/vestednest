@@ -242,7 +242,7 @@ export function TestimonialsSection() {
   return (
     <section className="landing-testimonials-section">
       <div className="text-center">
-        <SectionLabel>What Operators Say</SectionLabel>
+        <SectionLabel>WHAT OPERATORS SAY</SectionLabel>
         <h2 className="landing-testimonials-title">Testimonials</h2>
       </div>
       <div className="landing-testimonial-rows">

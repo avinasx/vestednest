@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddressAutocomplete } from "@/components/vestednest/address-autocomplete";
 import { VestedNestLogo } from "@/components/vestednest/logo";
 import { LandingNav } from "@/components/landing/landing-nav";
@@ -9,6 +9,12 @@ import { ChatMarkdown } from "./chat-markdown";
 import { FlowChrome } from "./flow-chrome";
 import { useLoanFlow } from "./use-loan-flow";
 import { borrowerLabel, fmtMoney, termSheetFilename } from "./utils";
+import {
+  buildNestChatLaunchMessage,
+  getNestChatInit,
+  markNestChatInitApplied,
+  type NestChatInit,
+} from "@/lib/nest-chat-launch";
 
 const LOAD_STEPS = [
   {
@@ -103,9 +109,10 @@ function TogglePill({
   );
 }
 
-export function AppFlow() {
+export function AppFlow({ pendingChatInit = null }: { pendingChatInit?: NestChatInit | null }) {
   const f = useLoanFlow();
   const [flowReady, setFlowReady] = useState(false);
+  const bootstrapped = useRef(false);
   const ts = f.liveTermSheet;
   const intel = f.deal?.intel;
   const shortAddr = intel
@@ -113,8 +120,23 @@ export function AppFlow() {
     : f.addressLabel;
 
   useEffect(() => {
-    setFlowReady(true);
-  }, []);
+    const init = pendingChatInit ?? getNestChatInit();
+    if (!init) {
+      setFlowReady(true);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (bootstrapped.current) return;
+      bootstrapped.current = true;
+      if (init.state) f.setHeroState(init.state);
+      f.startFromHero(buildNestChatLaunchMessage(init));
+      markNestChatInitApplied();
+      setFlowReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [f, pendingChatInit]);
 
   return (
     <>

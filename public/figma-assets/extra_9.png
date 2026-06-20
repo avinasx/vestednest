@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="aspect-ratio">
+<path id="Vector" d="M2.66667 16C2.66667 10.3431 2.66667 7.51472 4.22876 5.75736C5.79087 4 8.30501 4 13.3333 4H18.6667C23.6949 4 26.2092 4 27.7712 5.75736C29.3333 7.51472 29.3333 10.3431 29.3333 16C29.3333 21.6568 29.3333 24.4853 27.7712 26.2427C26.2092 28 23.6949 28 18.6667 28H13.3333C8.30501 28 5.79087 28 4.22876 26.2427C2.66667 24.4853 2.66667 21.6568 2.66667 16Z" stroke="var(--stroke-0, #24933E)" stroke-width="2"/>
+<path id="Vector_2" d="M2.66667 12H13.3333C17.1045 12 18.9901 12 20.1617 13.1716C21.3333 14.3432 21.3333 16.2288 21.3333 20V28" stroke="var(--stroke-0, #24933E)" stroke-width="2"/>
+<path id="Vector_3" d="M13.3333 28V12" stroke="var(--stroke-0, #24933E)" stroke-width="2"/>
+</g>
+</svg>

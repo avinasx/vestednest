@@ -1,36 +1,58 @@
 /* eslint-disable @next/next/no-img-element */
+import Link from "next/link";
+import { PRODUCT_FOOTER_LINKS } from "@/lib/product-pages/routes";
+import {
+  COMPANY_FOOTER_LINKS,
+  RESOURCES_FOOTER_LINKS,
+} from "@/lib/static-pages/routes";
 import { VestedNestLogo } from "@/components/vestednest/logo";
 
 const columns = [
   {
     title: "Products",
-    links: [
-      "DSCR Loans",
-      "Bridge Loans",
-      "Cash-Out Refinance",
-      "Rental Property Loans",
-      "Foreign National Loans",
-    ],
+    links: PRODUCT_FOOTER_LINKS.map((item) => ({
+      label: item.label,
+      href: item.href,
+    })),
   },
   {
     title: "Company",
-    links: ["About", "Careers", "Contact", "Blog / Insights", "Privacy"],
+    links: COMPANY_FOOTER_LINKS.map((item) => ({
+      label: item.label,
+      href: item.href,
+    })),
   },
   {
     title: "Resources",
-    links: ["FAQ", "Loan Calculator", "Rate Estimates", "Guides for Investors"],
+    links: RESOURCES_FOOTER_LINKS.map((item) => ({
+      label: item.label,
+      href: item.href,
+    })),
   },
 ];
 
-const socials = [
-  { label: "LinkedIn", href: "https://in.linkedin.com/", icon: "/landing/icon-linkedin.svg" },
-  { label: "X", href: "https://x.com/", icon: "/landing/icon-x.svg" },
-  { label: "Instagram", href: "https://www.instagram.com/", icon: "/landing/icon-instagram.svg" },
+const contact = [
+  { icon: "/landing/icon-mail.svg", text: "connect@vestednest.com" },
+  { icon: "/landing/icon-phone.svg", text: "(833) 888-LOAN" },
+  { icon: "/landing/icon-calendar-sm.svg", text: "Mon–Fri • 9AM–6PM EST" },
 ];
 
-const contact = [
-  { icon: "/landing/icon-mail.svg", text: "viraj@theagentfactory.io" },
-  { icon: "/landing/icon-phone.svg", text: "+1 (516) 661-9018" },
+const socials = [
+  {
+    href: "https://in.linkedin.com/",
+    icon: "/landing/icon-linkedin.svg",
+    label: "LinkedIn",
+  },
+  {
+    href: "https://x.com/Praha37v",
+    icon: "/landing/icon-x.svg",
+    label: "X",
+  },
+  {
+    href: "https://www.instagram.com/",
+    icon: "/landing/icon-instagram.svg",
+    label: "Instagram",
+  },
 ];
 
 export function Footer() {
@@ -52,20 +74,20 @@ export function Footer() {
                 </p>
               ))}
             </div>
-            {/* <div className="landing-footer-socials">
-              {socials.map((s) => (
+            <div className="landing-footer-socials">
+              {socials.map((social) => (
                 <a
-                  key={s.label}
-                  href={s.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={s.label}
+                  key={social.label}
+                  href={social.href}
                   className="landing-footer-social"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={social.label}
                 >
-                  <img src={s.icon} alt="" aria-hidden />
+                  <img src={social.icon} alt="" aria-hidden />
                 </a>
               ))}
-            </div> */}
+            </div>
           </div>
           <div className="landing-footer-cols">
             {columns.map((col) => (
@@ -73,8 +95,12 @@ export function Footer() {
                 <h3>{col.title}</h3>
                 <ul>
                   {col.links.map((link) => (
-                    <li key={link}>
-                      <a href="#">{link}</a>
+                    <li key={link.label}>
+                      {link.href ? (
+                        <Link href={link.href}>{link.label}</Link>
+                      ) : (
+                        <span className="landing-footer-link--disabled">{link.label}</span>
+                      )}
                     </li>
                   ))}
                 </ul>

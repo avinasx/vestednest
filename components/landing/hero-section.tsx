@@ -18,7 +18,12 @@ export function HeroSection({ onStart }: HeroSectionProps) {
       <section className="landing-hero">
         <div className="landing-hero-grid" aria-hidden />
         <div className="landing-hero-cells" aria-hidden />
-        <div className="landing-hero-glow" aria-hidden />
+        <img
+          src="/landing/hero-dotted-arc.svg"
+          alt=""
+          className="landing-hero-arc"
+          aria-hidden
+        />
         <div className="landing-hero-inner">
           <div className="landing-hero-badge">America&apos;s first agentic DSCR lender</div>
           <h1 suppressHydrationWarning>

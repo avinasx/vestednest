@@ -1,0 +1,215 @@
+/* Privacy page — Figma frame 41:11964 */
+
+.privacy-page {
+  background: #f4f2f1;
+  color: #0f0e0c;
+  font-family: var(--font-geist-sans), "Geist", system-ui, sans-serif;
+}
+
+/* Hero */
+.privacy-page-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 380px;
+  background: #fff;
+  border-bottom: 1px solid #b8b8b8;
+}
+
+.privacy-page-hero-grid,
+.privacy-page-hero-cells {
+  position: absolute;
+  inset: 0;
+}
+
+.privacy-page-hero-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding-top: 48px;
+  padding-bottom: 40px;
+  text-align: center;
+}
+
+.privacy-page-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 838px;
+}
+
+.privacy-page-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  background: #f0f0f0;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 20px;
+  color: #000;
+}
+
+.privacy-page-hero-title {
+  margin: 0;
+  font-size: 52px;
+  font-weight: 400;
+  line-height: 0.99;
+  letter-spacing: -0.02em;
+  color: #000;
+}
+
+.privacy-page-hero-accent {
+  font-weight: 700;
+  color: #24933e;
+}
+
+.privacy-page-hero-lead {
+  margin: 0;
+  max-width: 570px;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+/* Body */
+.privacy-page-body {
+  padding: 32px 0 80px;
+}
+
+.privacy-page-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 80px;
+  align-items: start;
+}
+
+.privacy-page-sidebar {
+  position: sticky;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #b8b8b8;
+}
+
+.privacy-page-nav-item {
+  position: relative;
+  display: block;
+  text-decoration: none;
+}
+
+.privacy-page-nav-rail {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 2px;
+  height: 34px;
+  background: #b8b8b8;
+}
+
+.privacy-page-nav-item.is-active .privacy-page-nav-rail {
+  background: #24933e;
+}
+
+.privacy-page-nav-label {
+  display: block;
+  margin-left: 14px;
+  padding: 12px;
+  border: 0.5px solid transparent;
+  border-radius: 8px;
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #000;
+}
+
+.privacy-page-nav-item.is-active .privacy-page-nav-label {
+  background: rgba(36, 147, 62, 0.06);
+  border-color: #24933e;
+  color: #25933e;
+}
+
+.privacy-page-main {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 880px;
+}
+
+.privacy-page-section {
+  scroll-margin-top: 120px;
+}
+
+.privacy-page-section-title {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: normal;
+  color: #0f0e0c;
+}
+
+.privacy-page-block {
+  margin-bottom: 10px;
+}
+
+.privacy-page-block:last-child {
+  margin-bottom: 0;
+}
+
+.privacy-page-block p,
+.privacy-page-block li {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: #555554;
+}
+
+.privacy-page-block ul {
+  margin: 0;
+  padding-left: 27px;
+  list-style: disc;
+}
+
+.privacy-page-block li {
+  margin-bottom: 4px;
+}
+
+.privacy-page-subhead {
+  font-weight: 600 !important;
+  color: #0f0e0c !important;
+}
+
+.privacy-page-subsection {
+  margin-bottom: 12px;
+}
+
+.privacy-page-block a {
+  color: #0097e8;
+  text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .privacy-page-layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .privacy-page-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .privacy-page-hero-title {
+    font-size: clamp(2rem, 8vw, 3.25rem);
+  }
+}
