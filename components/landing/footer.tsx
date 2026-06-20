@@ -32,28 +32,29 @@ const columns = [
 ];
 
 const contact = [
-  { icon: "/landing/icon-mail.svg", text: "connect@vestednest.com" },
-  { icon: "/landing/icon-phone.svg", text: "(833) 888-LOAN" },
+  { icon: "/landing/icon-mail.svg", text: "viraj@theagentfactory.io" },
+  { icon: "/landing/icon-phone.svg", text: "+1 (516) 661-9018" },
   { icon: "/landing/icon-calendar-sm.svg", text: "Mon–Fri • 9AM–6PM EST" },
 ];
 
-const socials = [
-  {
-    href: "https://in.linkedin.com/",
-    icon: "/landing/icon-linkedin.svg",
-    label: "LinkedIn",
-  },
-  {
-    href: "https://x.com/Praha37v",
-    icon: "/landing/icon-x.svg",
-    label: "X",
-  },
-  {
-    href: "https://www.instagram.com/",
-    icon: "/landing/icon-instagram.svg",
-    label: "Instagram",
-  },
-];
+// Social links — re-enable when profiles are ready
+// const socials = [
+//   {
+//     href: "https://in.linkedin.com/",
+//     icon: "/landing/icon-linkedin.svg",
+//     label: "LinkedIn",
+//   },
+//   {
+//     href: "https://x.com/Praha37v",
+//     icon: "/landing/icon-x.svg",
+//     label: "X",
+//   },
+//   {
+//     href: "https://www.instagram.com/",
+//     icon: "/landing/icon-instagram.svg",
+//     label: "Instagram",
+//   },
+// ];
 
 export function Footer() {
   return (
@@ -74,6 +75,7 @@ export function Footer() {
                 </p>
               ))}
             </div>
+            {/* Social links — re-enable when profiles are ready
             <div className="landing-footer-socials">
               {socials.map((social) => (
                 <a
@@ -88,6 +90,7 @@ export function Footer() {
                 </a>
               ))}
             </div>
+            */}
           </div>
           <div className="landing-footer-cols">
             {columns.map((col) => (
