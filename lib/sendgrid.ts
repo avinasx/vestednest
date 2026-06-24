@@ -14,13 +14,11 @@ export async function sendTermSheetEmail(input: {
   const from = process.env.SENDGRID_FROM_EMAIL ?? "quotes@vestednest.com";
 
   if (!apiKey) {
-    console.info("[email] SENDGRID_API_KEY not set — queuing term sheet email", {
-      to: input.to,
-      address: input.address,
-      filename: input.filename,
-      size: input.pdfBuffer.length,
-    });
-    return { sent: false, queued: true };
+    return {
+      sent: false,
+      queued: false,
+      error: "SendGrid not configured — set SENDGRID_API_KEY",
+    };
   }
 
   sgMail.setApiKey(apiKey);
@@ -48,5 +46,27 @@ export async function sendTermSheetEmail(input: {
     const message = err instanceof Error ? err.message : "SendGrid send failed";
     console.error("[email] SendGrid error:", message);
     return { sent: false, queued: false, error: message };
+  }
+}
+
+export async function sendRawEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+}): Promise<{ sent: boolean; error?: string }> {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const from = process.env.SENDGRID_FROM_EMAIL ?? "quotes@vestednest.com";
+
+  if (!apiKey) {
+    console.info("[email] ECC referral (SendGrid not configured):", input.subject, input.text.slice(0, 200));
+    return { sent: false, error: "SendGrid not configured" };
+  }
+
+  sgMail.setApiKey(apiKey);
+  try {
+    await sgMail.send({ to: input.to, from, subject: input.subject, text: input.text });
+    return { sent: true };
+  } catch (err) {
+    return { sent: false, error: err instanceof Error ? err.message : "Send failed" };
   }
 }

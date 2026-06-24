@@ -7,6 +7,7 @@ export type ApplicationStatus =
   | "property_loaded"
   | "term_sheet"
   | "prequal_submitted"
+  | "submitted"
   | "under_review"
   | "closed";
 
@@ -46,23 +47,35 @@ export async function upsertApplication(input: {
   purpose?: string;
   status?: ApplicationStatus;
   applicationId?: string;
+  dealSnapshot?: Json;
+  email?: string;
+  phone?: string;
+  utm?: Json;
+  referralPartner?: string;
 }): Promise<ApplicationRow | null> {
   const { client, userId } = await getWriteClient();
   if (!client) return null;
 
+  const patch = {
+    address: input.address,
+    property_intel: input.propertyIntel,
+    term_sheet: input.termSheet,
+    fico: input.fico,
+    borrower_type: input.borrowerType,
+    purpose: input.purpose,
+    status: input.status,
+    user_id: userId,
+    deal_snapshot: input.dealSnapshot,
+    email: input.email,
+    phone: input.phone,
+    utm: input.utm,
+    referral_partner: input.referralPartner,
+  };
+
   if (input.applicationId) {
     const { data, error } = await client
       .from("applications")
-      .update({
-        address: input.address,
-        property_intel: input.propertyIntel,
-        term_sheet: input.termSheet,
-        fico: input.fico,
-        borrower_type: input.borrowerType,
-        purpose: input.purpose,
-        status: input.status,
-        user_id: userId,
-      })
+      .update(patch)
       .eq("id", input.applicationId)
       .select()
       .single();
@@ -83,14 +96,8 @@ export async function upsertApplication(input: {
     const { data, error } = await client
       .from("applications")
       .update({
-        address: input.address,
-        property_intel: input.propertyIntel,
-        term_sheet: input.termSheet,
-        fico: input.fico,
-        borrower_type: input.borrowerType,
-        purpose: input.purpose,
+        ...patch,
         status: input.status ?? "property_loaded",
-        user_id: userId,
       })
       .eq("id", existing.id)
       .select()
@@ -103,15 +110,80 @@ export async function upsertApplication(input: {
     .from("applications")
     .insert({
       session_id: input.sessionId,
-      user_id: userId,
-      address: input.address,
-      property_intel: input.propertyIntel,
-      term_sheet: input.termSheet,
-      fico: input.fico,
-      borrower_type: input.borrowerType,
-      purpose: input.purpose,
+      ...patch,
       status: input.status ?? "draft",
     })
+    .select()
+    .single();
+
+  return error ? null : (data as ApplicationRow);
+}
+
+export async function linkApplicationToUser(
+  applicationId: string,
+  userId: string,
+  email?: string,
+): Promise<void> {
+  const service = createServiceClient();
+  if (!service) return;
+  await service
+    .from("applications")
+    .update({ user_id: userId, email: email ?? undefined })
+    .eq("id", applicationId);
+}
+
+export async function updateApplicationAfterSoftPull(
+  applicationId: string,
+  input: {
+    fico: number | null;
+    vendorRef?: string | null;
+    consentIp: string;
+    termSheet?: Json;
+    dealSnapshot?: Json;
+  },
+): Promise<ApplicationRow | null> {
+  const service = createServiceClient();
+  if (!service) return null;
+
+  const { data, error } = await service
+    .from("applications")
+    .update({
+      fico: input.fico,
+      term_sheet: input.termSheet,
+      deal_snapshot: input.dealSnapshot,
+      soft_pull_vendor_ref: input.vendorRef ?? null,
+      soft_pull_at: new Date().toISOString(),
+      prequal_consent_at: new Date().toISOString(),
+      prequal_consent_ip: input.consentIp,
+      status: "prequal_submitted",
+    })
+    .eq("id", applicationId)
+    .select()
+    .single();
+
+  return error ? null : (data as ApplicationRow);
+}
+
+export async function submitApplicationFull(input: {
+  applicationId: string;
+  email?: string;
+  phone?: string;
+  dealSnapshot?: Json;
+  referralPartner?: string;
+}): Promise<ApplicationRow | null> {
+  const service = createServiceClient();
+  if (!service) return null;
+
+  const { data, error } = await service
+    .from("applications")
+    .update({
+      email: input.email,
+      phone: input.phone,
+      deal_snapshot: input.dealSnapshot,
+      referral_partner: input.referralPartner,
+      status: "submitted",
+    })
+    .eq("id", input.applicationId)
     .select()
     .single();
 
@@ -179,10 +251,17 @@ export async function getCloseTrackerData(applicationId: string) {
   }
 
   const statusSteps: Record<string, { label: string; pct: number; status: string }[]> = {
+    submitted: [
+      { label: "Submitted", pct: 100, status: "Done ✓" },
+      { label: "Appraisal", pct: 30, status: "Day 1–3" },
+      { label: "Processing", pct: 15, status: "Parallel" },
+      { label: "Clear to close", pct: 0, status: "Day 10–12" },
+      { label: "Wire + Close", pct: 0, status: "Day 14" },
+    ],
     prequal_submitted: [
       { label: "Submitted", pct: 100, status: "Done ✓" },
       { label: "Appraisal", pct: 30, status: "Day 1–3" },
-      { label: "Underwriting", pct: 15, status: "Parallel" },
+      { label: "Processing", pct: 15, status: "Parallel" },
       { label: "Clear to close", pct: 0, status: "Day 10–12" },
       { label: "Wire + Close", pct: 0, status: "Day 14" },
     ],
@@ -196,7 +275,7 @@ export async function getCloseTrackerData(applicationId: string) {
     default: [
       { label: "Submitted", pct: 100, status: "Done ✓" },
       { label: "Appraisal", pct: 30, status: "Day 1–3" },
-      { label: "Underwriting", pct: 15, status: "Parallel" },
+      { label: "Processing", pct: 15, status: "Parallel" },
       { label: "Clear to close", pct: 0, status: "Day 10–12" },
       { label: "Wire + Close", pct: 0, status: "Day 14" },
     ],
@@ -206,13 +285,7 @@ export async function getCloseTrackerData(applicationId: string) {
     application: app,
     steps: statusSteps[app.status] ?? statusSteps.default,
     daysToClose: 14,
-    loanOfficer: loanOfficer ?? {
-      name: "Marcus Rodriguez",
-      email: "marcus@vestednest.com",
-      phone: null,
-      title: "Senior Underwriter",
-      avatar_initials: "MR",
-    },
+    loanOfficer,
     twilioEnabled: Boolean(process.env.TWILIO_ACCOUNT_SID),
   };
 }

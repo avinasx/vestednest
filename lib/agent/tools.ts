@@ -5,7 +5,6 @@ import { z } from "zod";
 import { isLikelyAddressQuery } from "@/lib/chat-intent";
 import {
   ADDRESS_KIND,
-  ELIGIBILITY_KIND,
   RATE_QUOTE_KIND,
   resolveInteraction,
   resolveInteractionSelection,
@@ -13,7 +12,10 @@ import {
 } from "@/lib/chat-interactions";
 import { propertyFromInteraction } from "@/lib/chat-interactions/compat";
 import type { AddressInteractionData } from "@/lib/chat-interactions/types";
-import { calculateTermSheetAsync } from "@/lib/dscr";
+import { evaluateFundingLane } from "@/lib/eligibility/matrix";
+import { runScenarioEngine } from "@/lib/scenario-engine";
+import { solve } from "@/lib/vn-engine";
+import type { DealState } from "@/lib/deal/types";
 import { searchAllKnowledgeSources } from "@/lib/knowledge-sources/registry";
 import {
   recallUserContext,
@@ -216,27 +218,34 @@ export const calculateDscrTool = tool(
     annualTax,
     interestOnly,
     state,
+    fico,
   }) => {
-    const termSheet = await calculateTermSheetAsync({
-      purchasePrice,
-      downPaymentPct,
-      monthlyRent,
-      annualTax,
+    const quote = solve({
+      fico: fico ?? 752,
+      value: purchasePrice,
+      down: downPaymentPct,
+      rent: monthlyRent,
+      taxAnnual: annualTax,
+      insAnnual: 2400,
       purpose: "purchase",
-      term: "30yr",
-      prepay: "3yr",
-      interestOnly: interestOnly ?? false,
       state,
+      io: interestOnly ?? false,
+      ppp: 36,
+      originationPct: 0,
     });
 
     return JSON.stringify({
-      rate: termSheet.rate,
-      loanAmount: termSheet.loanAmount,
-      ltv: termSheet.ltv,
-      monthlyPitia: termSheet.monthlyPitia,
-      dscr: termSheet.dscr,
-      qualifies: termSheet.qualifies,
-      cashToClose: termSheet.cashToClose,
+      rate: quote.rate,
+      loanAmount: quote.loan,
+      ltv: quote.ltv,
+      monthlyPitia: Math.round(quote.piti),
+      dscr: quote.dscr,
+      qualifies: quote.eligible && quote.dscr >= 1,
+      cashToClose: quote.cashToClose,
+      reserves: quote.reserves,
+      laneLabel: quote.laneLabel,
+      cashflow: quote.cashflow,
+      coc: quote.coc,
     });
   },
   {
@@ -249,6 +258,42 @@ export const calculateDscrTool = tool(
       annualTax: z.number(),
       interestOnly: z.boolean().optional(),
       state: z.string().optional().describe("Two-letter US state code"),
+      fico: z.number().optional(),
+    }),
+  },
+);
+
+export const runScenarioTool = tool(
+  async ({ value, rent, taxAnnual, fico, down, goal }) => {
+    const deal = {
+      value,
+      monthlyRent: rent,
+      intel: { marketValue: value, annualTax: taxAnnual, state: "NY" },
+      fico: fico ?? 752,
+      downPaymentPct: down ?? 25,
+      purpose: "purchase" as const,
+    } as DealState;
+    const result = runScenarioEngine(deal, goal ?? "return");
+    return JSON.stringify({
+      recommended: result.recommended,
+      leaders: result.leaders,
+      constraints: result.constraints,
+      eligibleCount: result.eligibleRows.length,
+    });
+  },
+  {
+    name: "run_scenario",
+    description:
+      "Run the scenario engine: compare down payments and products, return recommended structure and objective leaders.",
+    schema: z.object({
+      value: z.number(),
+      rent: z.number(),
+      taxAnnual: z.number(),
+      fico: z.number().optional(),
+      down: z.number().optional(),
+      goal: z
+        .enum(["cash-flow", "capital-efficiency", "return", "dscr", "lowest-rate", "lowest-payment"])
+        .optional(),
     }),
   },
 );
@@ -291,26 +336,18 @@ export const searchKnowledgeBaseTool = tool(
 
 export const checkStateEligibilityTool = tool(
   async ({ state, borrowerType }) => {
-    const interaction = await resolveInteraction(ELIGIBILITY_KIND, {
-      state,
-      borrowerType,
+    const result = evaluateFundingLane({
+      state: state.toUpperCase(),
+      vesting: borrowerType,
     });
 
-    const data = interaction.data as {
-      state?: string;
-      eligible?: boolean;
-      requiresAttestation?: boolean;
-      requiresLlc?: boolean;
-    } | undefined;
-
     return JSON.stringify({
-      state: data?.state ?? state,
-      eligible: data?.eligible ?? interaction.status === "success",
-      status: interaction.status,
-      message: interaction.message,
-      requiresAttestation: data?.requiresAttestation,
-      requiresLlc: data?.requiresLlc,
-      ...interactionPayload(interaction),
+      state,
+      eligible: result.lane === "broker-direct",
+      lane: result.lane,
+      message: result.message,
+      blockers: result.blockers,
+      lenderId: result.lenderId,
     });
   },
   {
@@ -366,6 +403,7 @@ export const nestTools = [
   lookupPropertyTool,
   getRateQuoteTool,
   calculateDscrTool,
+  runScenarioTool,
   searchKnowledgeBaseTool,
   checkStateEligibilityTool,
   saveUserPreferenceTool,

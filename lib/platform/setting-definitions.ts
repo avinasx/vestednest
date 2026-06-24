@@ -107,11 +107,19 @@ export const PLATFORM_SETTING_DEFINITIONS: PlatformSettingDefinition[] = [
   },
   {
     key: "credit.vendor_api_key",
-    label: "Credit vendor API key",
-    description: "Soft pull at pre-qual (optional)",
+    label: "Credit vendor API key (iSoftpull api-key)",
+    description: "Soft pull at pre-qual — iSoftpull API Key ID",
     type: "string",
     category: "credit",
     envKey: "CREDIT_VENDOR_API_KEY",
+    isSecret: true,
+  },
+  {
+    key: "credit.vendor_api_secret",
+    label: "Credit vendor API secret (iSoftpull api-secret)",
+    type: "string",
+    category: "credit",
+    envKey: "CREDIT_VENDOR_API_SECRET",
     isSecret: true,
   },
 ];

@@ -2,8 +2,10 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, readUIMessageStream, type UIMessage } from "ai";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { calculateTermSheet } from "@/lib/dscr";
+import type { TermSheet } from "@/lib/dscr";
+import { quoteToTermSheet } from "@/lib/deal/map-to-engine";
 import { ADDRESS_KIND } from "@/lib/chat-interactions";
 import { ADDRESS_NONE_OPTION_ID, optionForSelectionAction } from "@/lib/chat-interactions/action-chips";
 import type { SelectableOption } from "@/lib/chat-interactions/types";
@@ -20,6 +22,7 @@ const GREETING: ChatMessage = {
 };
 
 export function useLoanFlow() {
+  const router = useRouter();
   const [screen, setScreen] = useState(0);
   const [heroInput, setHeroInput] = useState("");
   const [heroState, setHeroState] = useState("GA");
@@ -177,29 +180,48 @@ export function useLoanFlow() {
     setLoanId(createLoanReference());
   }, []);
 
-  const liveTermSheet = useMemo(() => {
+  const [liveTermSheet, setLiveTermSheet] = useState<TermSheet | null>(null);
+
+  useEffect(() => {
     const price = purchasePrice || deal?.intel.arv || deal?.intel.marketValue || 0;
-    if (!price || !monthlyRent) return null;
-    return calculateTermSheet({
-      purchasePrice: price,
-      downPaymentPct,
-      monthlyRent,
-      annualTax: deal?.intel.annualTax ?? 3420,
-      purpose,
-      term: loanTerm,
-      prepay,
-      interestOnly,
-      fico,
-      borrowerType,
-      state: deal?.intel.state,
-    });
+    if (!price || !monthlyRent) {
+      setLiveTermSheet(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    void fetch("/api/price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fico,
+        value: price,
+        down: downPaymentPct,
+        rent: monthlyRent,
+        taxAnnual: deal?.intel.annualTax ?? 3420,
+        insAnnual: 2400,
+        purpose: purpose === "cashout" ? "cashout" : purpose === "bridge" ? "purchase" : purpose,
+        state: deal?.intel.state,
+        io: interestOnly,
+        ppp: prepay === "5yr" ? 60 : prepay === "none" ? 0 : 36,
+        foreignNational: borrowerType === "foreign",
+        originationPct: 0,
+      }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.quote) setLiveTermSheet(quoteToTermSheet(json.quote) as TermSheet);
+      })
+      .catch(() => null);
+
+    return () => controller.abort();
   }, [
     deal,
     purchasePrice,
     downPaymentPct,
     monthlyRent,
     purpose,
-    loanTerm,
     prepay,
     interestOnly,
     fico,
@@ -214,7 +236,7 @@ export function useLoanFlow() {
     async (overrides?: {
       status?: string;
       propertyIntel?: DealState["intel"];
-      termSheet?: ReturnType<typeof calculateTermSheet>;
+      termSheet?: TermSheet;
     }) => {
       const address = deal?.formattedAddress ?? heroInput;
       if (!address.trim()) return null;
@@ -450,15 +472,15 @@ export function useLoanFlow() {
     (value?: string) => {
       const v = (value ?? heroInput).trim();
       if (v) {
-        setHeroInput(v);
-        pendingHeroSend.current = v;
-      } else {
-        pendingHeroSend.current = null;
+        try {
+          sessionStorage.setItem("vn-pending-address", v);
+        } catch {
+          /* ignore */
+        }
       }
-      chatInit.current = false;
-      goTo(1);
+      router.push("/quote");
     },
-    [goTo, heroInput],
+    [heroInput, router],
   );
 
   const emailTermSheet = useCallback(async () => {

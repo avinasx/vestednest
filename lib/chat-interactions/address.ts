@@ -1,6 +1,7 @@
 import { resolveAddressInput } from "@/lib/address-resolve";
-import { calculateTermSheetAsync } from "@/lib/dscr";
-import { isStateEligible } from "@/lib/eligibility";
+import { solve } from "@/lib/vn-engine";
+import { quoteToTermSheet, mapPropertyType } from "@/lib/deal/map-to-engine";
+import { evaluateFundingLane } from "@/lib/eligibility/matrix";
 import {
   buildPropertyIntel,
   enrichPropertyIntel,
@@ -52,12 +53,12 @@ async function buildAddressSuccess(
   const intel = enrichRent ? await enrichPropertyIntel(baseIntel) : baseIntel;
   const formattedAddress = formatAddress(intel);
 
-  const stateCheck = intel.state ? await isStateEligible(intel.state) : null;
-  if (stateCheck && !stateCheck.eligible) {
+  const funding = intel.state ? evaluateFundingLane({ state: intel.state }) : null;
+  if (funding?.lane === "excluded") {
     return {
       status: "blocked",
       kind: ADDRESS_KIND,
-      message: stateCheck.message,
+      message: funding.message,
       data: {
         formattedAddress,
         intel,
@@ -67,17 +68,21 @@ async function buildAddressSuccess(
     };
   }
 
-  const termSheet = await calculateTermSheetAsync({
-    purchasePrice: intel.arv || intel.marketValue || 300000,
-    downPaymentPct: 25,
-    monthlyRent: intel.estimatedRent,
-    annualTax: intel.annualTax ?? 3000,
+  const quote = solve({
+    fico: 752,
+    value: intel.arv || intel.marketValue || 300000,
+    down: 25,
+    rent: intel.estimatedRent,
+    taxAnnual: intel.annualTax ?? 3000,
+    insAnnual: 2400,
     purpose: "purchase",
-    term: "30yr",
-    prepay: "3yr",
-    interestOnly: false,
+    propertyType: mapPropertyType(intel),
     state: intel.state,
+    county: intel.county ?? undefined,
+    ppp: 36,
+    originationPct: 0,
   });
+  const termSheet = quoteToTermSheet(quote);
 
   const data: AddressInteractionData = { intel, formattedAddress, termSheet };
 

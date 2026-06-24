@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { upsertApplication } from "@/lib/applications";
+import { getStoredUtmFromBody } from "@/lib/analytics/server";
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
       borrowerType?: string;
       purpose?: string;
       status?: string;
+      dealSnapshot?: unknown;
+      email?: string;
+      phone?: string;
+      utm?: Record<string, string>;
     };
 
     if (!body.sessionId || !body.address) {
@@ -32,6 +37,10 @@ export async function POST(request: Request) {
       borrowerType: body.borrowerType,
       purpose: body.purpose,
       status: body.status as never,
+      dealSnapshot: body.dealSnapshot as never,
+      email: body.email,
+      phone: body.phone,
+      utm: getStoredUtmFromBody(body.utm) as never,
     });
 
     if (!app) {

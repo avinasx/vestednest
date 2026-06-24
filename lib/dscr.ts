@@ -1,3 +1,5 @@
+import { solve } from "@/lib/vn-engine";
+import { quoteToTermSheet } from "@/lib/deal/map-to-engine";
 import { getActiveLogicRules } from "@/lib/logic";
 import { DEFAULT_RATE_FROM_SHEET } from "@/lib/logic/defaults";
 
@@ -47,6 +49,10 @@ export type TermSheet = {
   qualifies: boolean;
   termLabel: string;
   prepayLabel: string;
+  laneLabel?: string;
+  pointsPct?: number | null;
+  cashflow?: number;
+  coc?: number;
 };
 
 const DEFAULT_RATE_SETTINGS: Required<
@@ -66,26 +72,10 @@ const DEFAULT_RATE_SETTINGS: Required<
   originationPts: DEFAULT_RATE_FROM_SHEET.originationPts ?? 1.0,
   appraisalEst: DEFAULT_RATE_FROM_SHEET.appraisalEst ?? 650,
   titleFeeEst: DEFAULT_RATE_FROM_SHEET.titleFeeEst ?? 1840,
-  reserveMonths: DEFAULT_RATE_FROM_SHEET.reserveMonths ?? 3,
-  ficoBands: DEFAULT_RATE_FROM_SHEET.ficoBands ?? [
-    { min: 760, max: 850, adjustment: -0.5 },
-    { min: 740, max: 759, adjustment: -0.375 },
-    { min: 700, max: 739, adjustment: 0 },
-    { min: 680, max: 699, adjustment: 0.25 },
-    { min: 660, max: 679, adjustment: 0.5 },
-    { min: 620, max: 639, adjustment: 1.0 },
-  ],
-  borrowerAdjustments: DEFAULT_RATE_FROM_SHEET.borrowerAdjustments ?? {
-    llc: 0,
-    individual: 0.125,
-    foreign: 0.375,
-  },
-  purposeAdjustments: DEFAULT_RATE_FROM_SHEET.purposeAdjustments ?? {
-    purchase: 0,
-    cashout: 0.375,
-    bridge: 0.125,
-    refi: 0.125,
-  },
+  reserveMonths: DEFAULT_RATE_FROM_SHEET.reserveMonths ?? 6,
+  ficoBands: DEFAULT_RATE_FROM_SHEET.ficoBands ?? [],
+  borrowerAdjustments: DEFAULT_RATE_FROM_SHEET.borrowerAdjustments ?? {},
+  purposeAdjustments: DEFAULT_RATE_FROM_SHEET.purposeAdjustments ?? {},
 };
 
 export type DscrQualification = {
@@ -99,13 +89,9 @@ let cacheExpiry = 0;
 
 export async function getRateSettings(): Promise<RateSettings> {
   if (cachedRateSettings && Date.now() < cacheExpiry) return cachedRateSettings;
-
   try {
     const rules = await getActiveLogicRules();
-    const settings = {
-      ...DEFAULT_RATE_SETTINGS,
-      ...rules.rateSettings,
-    };
+    const settings = { ...DEFAULT_RATE_SETTINGS, ...rules.rateSettings };
     cachedRateSettings = settings;
     cacheExpiry = Date.now() + 60_000;
     return settings;
@@ -131,25 +117,21 @@ export function evaluateDscrQualification(
   };
 }
 
-function termAdjustment(term: LoanTerm, prepay: PrepayPenalty, interestOnly: boolean): number {
-  let adj = 0;
-  if (term === "5/1") adj -= 0.5;
-  if (term === "7/1") adj -= 0.25;
-  if (prepay === "none") adj += 0.375;
-  if (prepay === "5yr") adj -= 0.25;
-  if (interestOnly) adj += 0.125;
-  return adj;
+function mapPurpose(purpose: LoanPurpose): "purchase" | "rt" | "cashout" {
+  if (purpose === "cashout") return "cashout";
+  if (purpose === "refi" || purpose === "bridge") return "rt";
+  return "purchase";
 }
 
-function ficoAdjustment(fico: number | undefined, bands: RateSettings["ficoBands"]): number {
-  if (!fico || !bands?.length) return 0;
-  const band = bands.find((b) => fico >= b.min && fico <= b.max);
-  return band?.adjustment ?? 0.75;
+function mapPrepay(prepay: PrepayPenalty): number {
+  if (prepay === "5yr") return 60;
+  if (prepay === "none") return 0;
+  return 36;
 }
 
 function termLabel(term: LoanTerm): string {
   if (term === "5/1") return "5/1 ARM";
-  if (term === "7/1") return "7/1 ARM";
+  if (term === "7/1") return "7/6 ARM";
   return "30yr Fixed";
 }
 
@@ -159,73 +141,47 @@ function prepayLabel(prepay: PrepayPenalty): string {
   return "3 year";
 }
 
+function inputsToEngine(inputs: LoanInputs) {
+  return {
+    fico: inputs.fico ?? 752,
+    value: inputs.purchasePrice,
+    down: inputs.downPaymentPct,
+    rent: inputs.monthlyRent,
+    taxAnnual: inputs.annualTax,
+    insAnnual: (inputs.insuranceMonthly ?? 120) * 12,
+    purpose: mapPurpose(inputs.purpose),
+    state: inputs.state,
+    ppp: mapPrepay(inputs.prepay),
+    io: inputs.interestOnly,
+    foreignNational: inputs.borrowerType === "foreign",
+    product: inputs.term === "7/1" ? ("arm76" as const) : ("fx30" as const),
+    originationPct: 0,
+  };
+}
+
+/** All pricing delegates to vn-engine — settings param kept for API compat. */
 export function calculateTermSheetWithSettings(
   inputs: LoanInputs,
-  settings: RateSettings = DEFAULT_RATE_SETTINGS,
+  _settings: RateSettings = DEFAULT_RATE_SETTINGS,
   minDscr = 1.0,
 ): TermSheet {
-  const merged = { ...DEFAULT_RATE_SETTINGS, ...settings };
-  const loanAmount = Math.round(inputs.purchasePrice * (1 - inputs.downPaymentPct / 100));
-  const ltv = 100 - inputs.downPaymentPct;
-
-  let rate = merged.baseRate ?? 7.99;
-  rate += termAdjustment(inputs.term, inputs.prepay, inputs.interestOnly);
-  rate += ficoAdjustment(inputs.fico, merged.ficoBands);
-  rate += merged.borrowerAdjustments?.[inputs.borrowerType ?? "llc"] ?? 0;
-  rate += merged.purposeAdjustments?.[inputs.purpose] ?? 0;
-  if (inputs.state && merged.stateAdjustments?.[inputs.state.toUpperCase()]) {
-    rate += merged.stateAdjustments[inputs.state.toUpperCase()];
-  }
-
-  const mr = rate / 100 / 12;
-  const n = 360;
-  const principalPmt = inputs.interestOnly
-    ? loanAmount * mr
-    : (loanAmount * (mr * Math.pow(1 + mr, n))) / (Math.pow(1 + mr, n) - 1);
-
-  const taxMonthly = inputs.annualTax / 12;
-  const insurance = inputs.insuranceMonthly ?? 120;
-  const monthlyPitia = Math.round(principalPmt + taxMonthly + insurance);
-  const dscr = monthlyPitia > 0 ? inputs.monthlyRent / monthlyPitia : 0;
-
-  const originationPts = merged.originationPts ?? 1.25;
-  const originationFee = Math.round(loanAmount * (originationPts / 100));
-  const reserveMonths = merged.reserveMonths ?? 6;
-  const reserves = Math.round(monthlyPitia * reserveMonths);
-  const downPayment = Math.round(inputs.purchasePrice * (inputs.downPaymentPct / 100));
-  const cashToClose =
-    downPayment +
-    originationFee +
-    (merged.appraisalEst ?? 650) +
-    (merged.titleFeeEst ?? 1840) +
-    reserves;
-
+  const quote = solve(inputsToEngine(inputs));
+  const sheet = quoteToTermSheet(quote);
   return {
-    rate: Math.round(rate * 1000) / 1000,
-    loanAmount,
-    ltv,
-    monthlyPitia,
-    dscr: Math.round(dscr * 100) / 100,
-    cashToClose,
-    originationPts,
-    originationFee,
-    reserves,
-    reservesMonths: reserveMonths,
-    qualifies: dscr >= minDscr,
+    ...sheet,
+    qualifies: quote.eligible && quote.dscr >= minDscr,
     termLabel: termLabel(inputs.term),
     prepayLabel: prepayLabel(inputs.prepay),
   };
 }
 
-/** Synchronous calculator using default settings (client-safe). */
 export function calculateTermSheet(inputs: LoanInputs): TermSheet {
   return calculateTermSheetWithSettings(inputs, DEFAULT_RATE_SETTINGS);
 }
 
-/** Async calculator that loads admin rate_settings when available. */
 export async function calculateTermSheetAsync(inputs: LoanInputs): Promise<TermSheet> {
-  const [settings, rules] = await Promise.all([getRateSettings(), getActiveLogicRules()]);
-  return calculateTermSheetWithSettings(inputs, settings, rules.dscr.minQualifyingDscr);
+  const rules = await getActiveLogicRules();
+  return calculateTermSheetWithSettings(inputs, DEFAULT_RATE_SETTINGS, rules.dscr.minQualifyingDscr);
 }
 
 export function estimateMonthlyRent(marketValue: number): number {

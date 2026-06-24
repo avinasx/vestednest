@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Geist, Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { AppProviders } from "@/components/app-providers";
+import { GtmScript } from "@/components/analytics/gtm-script";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import "./globals.css";
 import "./landing.css";
 import "./product-pages.css";
@@ -7,6 +10,7 @@ import "./figma-ui.css";
 import "./static-pages.css";
 import "./flow.css";
 import "./vestednest.css";
+import "./quote/quote.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,7 +58,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${fraunces.variable} ${dmSans.variable} ${inter.variable} ${plusJakarta.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden bg-vn-bg text-black">{children}</body>
+      <body className="h-full overflow-hidden bg-vn-bg text-black">
+        <GtmScript />
+        <MetaPixel />
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

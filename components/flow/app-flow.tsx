@@ -1012,7 +1012,7 @@ export function AppFlow({ pendingChatInit = null }: { pendingChatInit?: NestChat
                 <div className="lgsec muted mb4">WHAT HAPPENS NEXT</div>
                 <div className="cdk" style={{ padding: 20 }}>
                   {[
-                    ["dn", "✓", "Today — Soft pull & review", "We run credit, review docs, assign your underwriter"],
+                    ["dn", "✓", "Today — Soft pull & review", "We run credit, review docs, assign your loan advisor"],
                     ["ac", "D1", "Days 1–3 — Appraisal ordered", "Bridge appraisal reused where allowed."],
                     ["dm", "D7", "Days 1–7 — Underwriting in parallel", "Not sequential. We don't wait for the appraisal."],
                     ["dm", "14", "Day 14 — Close", "Wire instructions issued. Median close is 14 days."],
@@ -1064,7 +1064,7 @@ export function AppFlow({ pendingChatInit = null }: { pendingChatInit?: NestChat
               <div>
                 <h2 className="h2 dk mb4">You&apos;re on the clock.</h2>
                 <p style={{ fontSize: 15, color: "var(--dm)" }}>
-                  Your underwriter will reach out within 24 hours.
+                  Your loan advisor will reach out within 24 hours.
                 </p>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -1110,7 +1110,7 @@ export function AppFlow({ pendingChatInit = null }: { pendingChatInit?: NestChat
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 14, color: "var(--dk)" }}>{f.closeTracker?.loanOfficer?.name ?? "Marcus Rodriguez"}</div>
                     <div style={{ fontSize: 12, color: "var(--dt)" }}>
-                      {f.closeTracker?.loanOfficer?.title ?? "Your dedicated underwriter"} · Vested Nest
+                      {f.closeTracker?.loanOfficer?.title ?? "Your loan advisor"} · Vested Nest
                     </div>
                   </div>
                   <div className="row gap7">
